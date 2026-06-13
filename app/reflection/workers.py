@@ -138,6 +138,7 @@ async def decay_importance(user_id: str | None = None) -> dict[str, Any]:
     records = await meta.list_memories(user_id, limit=1000)
     decayed = 0
     cooled = 0
+    evicted = 0  # 从 ChromaDB 真正删除的数量
     for r in records:
         last = r.last_recalled_at or r.created_at
         days_silent = (now - last).total_seconds() / 86400.0
@@ -150,17 +151,33 @@ async def decay_importance(user_id: str | None = None) -> dict[str, Any]:
             await vec.update_metadata(r.id, user_id, {"importance": r.importance})
             await meta.upsert_memory(r)
             decayed += 1
-            # importance < 0.1 且 30 天未召回 → 标 cold
+            # importance < 0.1 且 30 天未召回 → 标 cold + 从 ChromaDB 移除
+            # 设计取舍: 保留 SQLite (审计可追溯), 仅从 Chroma 删除节省向量索引
+            # 半衰公式保证 60 天内不会误判 (新写入 importance ≥ 0.5,
+            # 60 天 silence 后 ≈ 0.5 × e^(-0.5) ≈ 0.3, 仍在 hot 区)
             if r.importance < 0.1 and days_silent > 30 and r.tier == "hot":
                 r.tier = "cold"
                 await meta.upsert_memory(r)
                 cooled += 1
+                # 真正从 ChromaDB 删除以节省向量索引空间.
+                # 不删 SQLite (用 tier=cold 标识, 业务方可手动恢复或归档)
+                try:
+                    await vec.delete(r.id, user_id)
+                    evicted += 1
+                except Exception as e:
+                    logger.debug(f"decay 从 Chroma 移除 {r.id} 失败 (忽略): {e}")
         except Exception as e:
             logger.warning(f"decay 更新失败 {r.id}: {e}")
 
-    logger.info(f"[Reflection] decay: user={user_id} decayed={decayed} cooled={cooled}")
+    logger.info(
+        f"[Reflection] decay: user={user_id} decayed={decayed} "
+        f"cooled={cooled} evicted_from_vec={evicted}"
+    )
     metrics.incr("reflection.decay.runs")
-    return {"user_id": user_id, "decayed": decayed, "cooled": cooled}
+    return {
+        "user_id": user_id, "decayed": decayed,
+        "cooled": cooled, "evicted_from_vec": evicted,
+    }
 
 
 # ╔══════════════════════════════════════════════════════════════════════╗
