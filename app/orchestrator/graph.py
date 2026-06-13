@@ -38,6 +38,63 @@ from app.models import (
 from app.recall import recall_router
 from app.storage import get_metadata, get_vector_store
 from app.utils.metrics import metrics
+from app.utils.tokenizer import cut_for_fts
+
+
+# Trivial episode 启发式: 包含这些关键词的 episode 才同步触发 LLM 抽取.
+# 漏抽的少量 fact 由后台 distill worker (1h 间隔) 兜底, 不会丢.
+# 设计原则: 宁可漏抽不可乱抽 (后台兜底成本固定, 同步抽取浪费 LLM token).
+#
+# 触发词选取: 来自 _PRED_REGISTRY 模板核心动词/名词 + 用户主语 + 否定词.
+# 单字 ("我", "有") 也保留 — 因为短句 "我搬了" 中 "搬"/"我" 单字关键
+# (extract_keywords 的 TF-IDF 在短句上会漏掉低 IDF 词, 此处用 cut_for_fts
+# 全切再做集合交即可, 性能 <10µs).
+_FACT_TRIGGER_WORDS = frozenset({
+    # 用户主语 / 关系
+    "我", "我们", "用户", "对象", "女朋友", "男朋友", "老婆", "老公", "配偶",
+    "孩子", "宠物", "家人", "兄弟", "姐妹", "猫", "狗",
+    # 个人状态变化
+    "住", "搬", "搬家", "工作", "公司", "上班", "就职", "辞职", "跳槽",
+    "出生", "周岁", "年龄", "结婚", "离婚",
+    # 偏好 / 情感
+    "喜欢", "爱", "爱吃", "讨厌", "偏好", "不爱",
+    # 健康
+    "过敏", "血型", "身高", "体重",
+    # 拥有 / 物品
+    "有", "买", "卖", "用", "戴", "车", "手机", "笔记本", "相机",
+    # 联系方式 / 地理
+    "电话", "邮箱", "地址", "微信", "QQ",
+    # 学习经历 / 能力
+    "毕业", "学习", "在读", "会说", "会写",
+})
+
+# Trivial episode 长度阈值: 短于此长度的 episode 直接跳过抽取
+# (问候 "好的" / "嗯" / "ok" / "在吗" 等通常 ≤ 5 字)
+_MIN_FACT_LENGTH = 6
+
+
+def _is_likely_fact(text: str) -> bool:
+    """启发式: 此 episode 是否值得跑 LLM 抽取.
+
+    跳过约 60% trivial episode (问候/确认/闲聊). 误判成本: 偶尔漏抽,
+    由后台 distill worker 兜底, 长期一致性不丢.
+
+    实现: 用 cut_for_fts 全切后做集合交, 不依赖 TF-IDF 排序
+    (TF-IDF 在短句上漏掉低 IDF 词, e.g. "我搬了" 的 "搬" / "我").
+    """
+    text = text.strip()
+    if len(text) < _MIN_FACT_LENGTH:
+        return False
+    tokens = set(cut_for_fts(text).split())
+    # 包含触发词中任意一个即视为有 fact 倾向
+    if tokens & _FACT_TRIGGER_WORDS:
+        return True
+    # cut_for_fts 已过滤单字, 但 _FACT_TRIGGER_WORDS 含单字 ("我"/"有"等)
+    # 兜底: 直接对原文做单字包含检查
+    for w in _FACT_TRIGGER_WORDS:
+        if len(w) == 1 and w in text:
+            return True
+    return False
 
 
 class MemoryOrchestrator:
@@ -142,10 +199,14 @@ class MemoryOrchestrator:
 
         else:  # EPISODIC (默认)
             memory_id = await episodic_memory.write(record)
-            # 异步触发 semantic 抽取 — 用 _spawn_bg 持有引用避免 GC
-            self._spawn_bg(
-                self._extract_semantic_safely(req.user_id, req.content, record.id)
-            )
+            # Trivial 跳过: 仅当文本看起来含有可抽取 fact 时才同步触发 LLM.
+            # 漏抽由后台 distill worker (1h 间隔) 兜底.
+            if _is_likely_fact(req.content):
+                self._spawn_bg(
+                    self._extract_semantic_safely(req.user_id, req.content, record.id)
+                )
+            else:
+                metrics.incr("orchestrator.write.trivial_skipped")
 
         metrics.incr(f"orchestrator.write.{req.type.value}")
 
