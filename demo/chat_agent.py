@@ -5,10 +5,16 @@
 Agent 在对话中自动决定何时调用记忆工具.
 
 核心设计:
-  - Agent System Prompt 引导记忆决策 (何时 remember / recall)
+  - Agent System Prompt 引导记忆决策 (何时 remember / recall / graph_query)
   - MCP Tools 作为 LangChain StructuredTool 供 Agent 自主调用
-  - Snapshot Resource 作为 System Prompt 初始注入 (提供核心上下文)
+  - Snapshot Resource 作为 System Prompt 初始注入 (Letta Core Memory 思想)
   - 每轮对话: Agent 先 recall -> 回复用户 -> 主动 remember 有价值的信息
+
+记忆中间件能力 (本 demo 全部覆盖):
+  - 5 类分层记忆 (Episodic/Semantic/Procedural/Reflective/Implicit)
+  - recall 支持 max_tokens 预算 + valid_at 历史时刻查询
+  - graph_query / list_entities / entity_merge 知识图谱操作
+  - track_signal + reflect 驱动 Implicit 偏好挖掘
 
 运行方式:
   1. 先启动 MCP Server:
@@ -101,8 +107,6 @@ AGENT_SYSTEM_PROMPT = """你是一个拥有长期记忆能力的 AI 助手。你
 
 ## 记忆工具使用指南
 
-你有以下记忆工具可用:
-
 ### remember — 写入记忆
 当用户提供具有跨会话价值的信息时, 主动调用:
 - 个人偏好、事实、属性 → memory_type="semantic", importance="high"
@@ -117,6 +121,12 @@ AGENT_SYSTEM_PROMPT = """你是一个拥有长期记忆能力的 AI 助手。你
 - 用户问 "你还记得..." → 立即 recall
 - 用户提到个人相关话题 → recall 获取背景
 - 你不确定某个信息时 → recall 查证
+
+参数提示 (按需使用, 默认即可):
+- max_tokens=6000: 多条历史时控制返回长度, 避免上下文塞爆
+  (适用 query 较开放、可能命中长 episode 的场景)
+- valid_at="2024-06-01T00:00:00": 历史时刻查询, 仅返回该时间点有效的事实
+  (适用 "用户去年住哪/2024 在哪工作" 这类问题; 仅 SEMANTIC 生效)
 
 ### recall_workflow — 检索流程
 当用户要执行某类任务时, 先查是否有定制化工作流。
@@ -140,6 +150,16 @@ AGENT_SYSTEM_PROMPT = """你是一个拥有长期记忆能力的 AI 助手。你
 - action="forget": 删除记忆 (需 confirm=True)
 - action="arbitrations": 查看冲突仲裁记录
 
+### graph_query — 知识图谱查询 (高级)
+当用户问及实体之间的关联时调用, 而非直接 recall:
+- query_type="multi_hop": "我同事的同事都有谁?" 这类多跳关系
+- query_type="related": "和小明相关的所有事实" — 找某实体的关联实体
+- query_type="community": 发现用户关系网中的强连通子图 (社区)
+
+### list_entities / entity_merge — 实体管理
+- list_entities: 列出已消解的实体 (人/地点/组织/产品)
+- entity_merge: 用户/Agent 发现两个实体是同一个时合并 (e.g. "小明" 和 "张小明" 同一人)
+
 ## 对话策略
 
 1. 首次对话: 先调用 get_profile 了解用户, 如无画像则在对话中自然积累
@@ -147,6 +167,7 @@ AGENT_SYSTEM_PROMPT = """你是一个拥有长期记忆能力的 AI 助手。你
 3. 回答问题时: 如果涉及用户个人偏好/历史, 先 recall 再回答
 4. 自然地展示你记得的信息: "我记得你说过对花生过敏..."
 5. 用户纠正信息: 用 remember + source_type="corrected" 记住纠正后的版本
+6. 用户问"以前/去年/某年"这类历史问题: 用 recall(valid_at="...") 拿到当时事实
 """
 
 
@@ -306,9 +327,15 @@ async def run_chat(user_id: str = "demo_user") -> None:
                     args = tc.get("args", {})
                     if isinstance(args, dict):
                         key_args = {}
-                        for k in ("user_id", "content", "query", "memory_type",
-                                   "importance", "action", "signal_type", "source_type"):
-                            if k in args and args[k]:
+                        # 展示与"记忆决策"相关的关键参数 (省略 user_id 减少噪声)
+                        for k in (
+                            "content", "query", "memory_type",
+                            "importance", "action", "signal_type", "source_type",
+                            "max_tokens", "valid_at",                # Phase 2 新增
+                            "query_type", "entity",                  # graph_query
+                            "primary_entity_id", "secondary_entity_id",  # entity_merge
+                        ):
+                            if k in args and args[k] not in (None, ""):
                                 val = args[k]
                                 if isinstance(val, str) and len(val) > 50:
                                     key_args[k] = val[:50] + "..."
