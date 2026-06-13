@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual env
+.venv/
+venv/
+env/
+
+# Tests
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Type / lint
+.mypy_cache/
+.ruff_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# Env
+.env
+.env.local
+
+# 运行时数据(不入库)
+data/chroma/
+data/graph/
+data/cold/
+data/memocortex.db
+data/fts.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+logs/
+
+# Eval 结果(保留 .last_eval_score 用于跨版本对比)
+tests/eval/runs/
+!tests/eval/.last_eval_score
+
+# HuggingFace 模型缓存(放本地缓存)
+.huggingface/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude / Cursor / Qoder local config
+.claude/
+.cursor/
+.codegraph/
+
+# uv lock kept; per-repo policy may vary

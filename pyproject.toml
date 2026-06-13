@@ -1,0 +1,104 @@
+[project]
+name = "memocortex"
+version = "0.1.0"
+description = "Agent-agnostic 长期记忆中间件 (MCP-Only) — 5 类分层记忆、4 信号 Hybrid Recall、LLM-as-Arbitrator 冲突消解"
+authors = [{name = "chief"}]
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = {text = "MIT"}
+dependencies = [
+    # AI 编排
+    "langchain>=0.3.0",
+    "langchain-core>=0.3.0",
+    "langchain-openai>=0.2.0",
+    # 向量存储 (MVP: ChromaDB 内嵌; 生产: 切到 langchain-milvus)
+    "chromadb>=0.5.0",
+    # Embedding (本地 HuggingFace bge-small-zh-v1.5)
+    "langchain-huggingface>=0.1.0",
+    "sentence-transformers>=2.2.0",
+    # 知识图谱 (MVP: NetworkX; 生产: 切到 neo4j-driver)
+    "networkx>=3.2",
+    # 关系数据 (MVP: SQLite via SQLAlchemy 2.0; 生产: 改连接串切 PG)
+    "sqlalchemy>=2.0",
+    "aiosqlite>=0.19.0",
+    # 后台任务 (MVP: APScheduler; 生产: 切到 Celery)
+    "apscheduler>=3.10",
+    # MCP
+    "fastmcp>=2.14.0",
+    # 工具库
+    "pydantic>=2.5.0,<3.0.0",
+    "pydantic-settings>=2.1.0",
+    "loguru>=0.7.2",
+    "python-dotenv>=1.0.0",
+    "aiofiles>=23.2.0",
+    "numpy>=1.26.0",
+    "langchain-mcp-adapters>=0.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "black>=23.12.0",
+    "ruff>=0.1.9",
+    "isort>=5.13.0",
+    "mypy>=1.8.0",
+    "pre-commit>=3.6.0",
+    "ipython>=8.20.0",
+]
+eval = [
+    # 评测需要,运行 demo 不需要
+    "datasets>=2.16.0",  # HuggingFace datasets 加载 LongMemEval
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "mcp_server*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "C", "B", "UP"]
+ignore = ["E501", "B008", "C901"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**" = ["B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+combine-as-imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = ["-ra", "-q", "--strict-markers"]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/tests/*", "*/__pycache__/*", "*/.venv/*"]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

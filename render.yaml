@@ -1,0 +1,34 @@
+# Render.com 一键部署配置 (MCP-Only)
+# https://render.com/docs/yaml-spec
+#
+# 部署步骤:
+#   1. push 此仓库到 GitHub
+#   2. https://dashboard.render.com → New + → Blueprint
+#   3. 选这个仓库 → render.yaml 自动识别
+#   4. 在 dashboard 设置 secret env:
+#      MEMOCORTEX_LLM_API_KEY = sk-xxx
+#   5. Deploy → 拿到 MCP Server URL
+
+services:
+  - type: web
+    name: memocortex-mcp
+    runtime: docker
+    plan: free
+    region: singapore  # 国内访问较快
+    envVars:
+      - key: MEMOCORTEX_LLM_API_BASE
+        value: https://api.deepseek.com/v1
+      - key: MEMOCORTEX_LLM_MODEL
+        value: deepseek-chat
+      - key: MEMOCORTEX_EMBEDDING_MODEL
+        value: BAAI/bge-small-zh-v1.5
+      - key: MEMOCORTEX_DATA_DIR
+        value: /data
+      - key: MEMOCORTEX_MCP_PORT
+        value: 8766
+      - key: MEMOCORTEX_LLM_API_KEY
+        sync: false  # 必须在 dashboard 手动设, 不存仓库
+    disk:
+      name: memocortex-data
+      mountPath: /data
+      sizeGB: 1
