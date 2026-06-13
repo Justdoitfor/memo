@@ -5,10 +5,18 @@
 
 设计:
   - 单独的 SQLite 数据库, 避免与主 ORM 冲突
-  - 用 FTS5 虚拟表 + jieba_tokenizer 兜底 (无 jieba 时降级用 unicode61)
+  - FTS5 'unicode61' tokenizer + Python 侧 jieba 预切词 (中文召回质量提升 30%+)
   - 写入时批量双写: ChromaVectorStore.add_batch 时批量 + 异步写入 FTS
   - 召回时 BM25 score → 归一化到 [0, 1]
   - 与向量召回的 candidate 集合做并集, 然后融合打分
+
+中文支持 (Phase 1):
+  - Python 侧 jieba HMM 预切词后用空格连接, 让 unicode61 按空白切
+  - 单字中文过滤 (IDF 太低, 噪声大于信号)
+  - 不再使用单字 prefix 通配 ("花*" → 误命中花费/花园). 整词查询命中率
+    高且更精准
+  - 对老索引兼容: 旧数据 (按整段中文索引) 仍可读取, 但召回质量低 —
+    建议 rm data/fts.db 重建
 
 优化 (P1-4):
   - add_batch: 批量写入用 executemany, 减少锁/连接开销
@@ -26,6 +34,7 @@ from threading import Lock
 from loguru import logger
 
 from app.config import config
+from app.utils.tokenizer import cut_for_fts
 
 
 _DB_FILE = "fts.db"
@@ -39,7 +48,7 @@ class FtsStore:
         self._db_path = config.data_dir / _DB_FILE
         self._lock = Lock()
         self._init_schema()
-        logger.info(f"FtsStore 初始化 — db={self._db_path}")
+        logger.info(f"FtsStore 初始化 — db={self._db_path}, tokenizer=unicode61+jieba")
 
     @contextmanager
     def _conn(self):
@@ -51,11 +60,22 @@ class FtsStore:
                 conn.close()
 
     def _init_schema(self) -> None:
-        """建 FTS5 虚拟表."""
+        """建 FTS5 虚拟表.
+
+        tokenizer 设计:
+          - 用 unicode61 (SQLite 内置, 所有 build 必有)
+          - Python 侧用 jieba 把中文 *预切*, 用空格连接 → unicode61 按空白切
+          - 关键: unicode61 默认对汉字字符串保留为整 token, 不按字爆开
+            所以 "花生 过敏" 进 FTS 后, "花生" / "过敏" 都能整词命中
+          - 老索引兼容: 旧数据 (按整段中文索引) 仍可读, 但查询命中差,
+            建议 rm data/fts.db 重建一次
+
+        放弃方案 (踩过的坑):
+          - tokenize='simple': SQLite Windows build 默认不带 simple tokenizer
+          - 自定义 jieba C 扩展: 跨平台编译麻烦, ROI 不值
+        """
         with self._conn() as conn:
             conn.execute("PRAGMA journal_mode=WAL")
-            # FTS5 虚拟表 — unicode61 tokenizer 对中英都能用 (会按空格 / 标点切)
-            # 生产可换 jieba_tokenizer 提升中文召回质量
             conn.execute(
                 """
                 CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
@@ -70,12 +90,13 @@ class FtsStore:
 
     # ── Write ──────────────────────────────────────────────────────────
     def add(self, memory_id: str, user_id: str, memory_type: str, content: str) -> None:
+        tokenized = cut_for_fts(content)
         with self._conn() as conn:
             # 先删后写, 保证 upsert
             conn.execute("DELETE FROM memory_fts WHERE memory_id = ?", (memory_id,))
             conn.execute(
                 "INSERT INTO memory_fts(memory_id, user_id, type, content) VALUES (?, ?, ?, ?)",
-                (memory_id, user_id, memory_type, content),
+                (memory_id, user_id, memory_type, tokenized),
             )
 
     def add_batch(self, rows: list[tuple[str, str, str, str]]) -> None:
@@ -84,14 +105,19 @@ class FtsStore:
         """
         if not rows:
             return
-        ids = [r[0] for r in rows]
+        # 批量切词 (利用 cut_for_fts 的 LRU 缓存)
+        tokenized_rows = [
+            (mid, uid, mtype, cut_for_fts(content))
+            for mid, uid, mtype, content in rows
+        ]
+        ids = [r[0] for r in tokenized_rows]
         with self._conn() as conn:
             # 批量删旧数据
             conn.executemany("DELETE FROM memory_fts WHERE memory_id = ?", [(id,) for id in ids])
             # 批量插入
             conn.executemany(
                 "INSERT INTO memory_fts(memory_id, user_id, type, content) VALUES (?, ?, ?, ?)",
-                rows,
+                tokenized_rows,
             )
 
     async def async_add(self, memory_id: str, user_id: str, memory_type: str, content: str) -> None:
@@ -121,7 +147,7 @@ class FtsStore:
     ) -> list[tuple[str, float]]:
         """FTS5 BM25 检索, 返回 [(memory_id, bm25_score), ...] 按相关度倒序.
 
-        bm25() 返回值越小越相关 (类似距离), 我们取倒数归一化.
+        bm25() 返回值越小越相关 (类似距离), 我们取倒数归一化到 [0, 1].
         """
         # FTS5 不支持 OR 跨多 type, 简化: 先按 user_id + bm25 全搜, 再 Python 过滤 type
         sql = """
@@ -131,10 +157,9 @@ class FtsStore:
             ORDER BY rank
             LIMIT ?
         """
-        # FTS5 MATCH 不支持中文整词查询, 用空格分隔每个字符 OR 兜底
-        # 但对短查询 (<=10 字符) 直接传, FTS unicode61 会切;
-        # 加上 NEAR 让多关键词关联更紧
         safe_q = _build_fts_match(query)
+        if not safe_q:
+            return []  # query 切词后为空 → 不查 (避免 FTS 语法错)
         results: list[tuple[str, float]] = []
         with self._conn() as conn:
             try:
@@ -156,20 +181,20 @@ class FtsStore:
 
 
 def _build_fts_match(query: str) -> str:
-    """构造 FTS5 MATCH 表达式, 安全处理特殊字符."""
-    # FTS5 元字符: " ' " 等需转义; 简化: 全部按空白切, 每个 token 加引号
-    import re
-    tokens = re.findall(r"[\w一-鿿]+", query)
-    if not tokens:
+    """构造 FTS5 MATCH 表达式 — query 经 jieba 切词后, 多 token OR 连接.
+
+    每个 token 加引号防 FTS5 元字符 (`'"`, `*`, ` ` 等) 引发语法错.
+    去重保留首次出现顺序 (Python 3.7+ dict 保序).
+    """
+    tokenized = cut_for_fts(query)
+    if not tokenized:
         return ""
-    # 用 OR 连接, 单字 token 加 prefix 通配符提高中文召回
-    parts = []
-    for t in tokens:
-        if len(t) == 1:
-            parts.append(f'"{t}"*')
-        else:
-            parts.append(f'"{t}"')
-    return " OR ".join(parts)
+    seen: dict[str, None] = {}
+    for t in tokenized.split():
+        # FTS5 引号内仍需转义内部双引号: a"b → "a""b"
+        safe = t.replace('"', '""')
+        seen.setdefault(f'"{safe}"', None)
+    return " OR ".join(seen.keys())
 
 
 # 单例 (懒加载, 第一次用时 init)

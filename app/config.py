@@ -90,6 +90,17 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: str = "INFO"
 
+    # ── 中文分词 (BM25 路径) ──────────────────────────────────────────
+    # 关闭后 FTS5 仍可工作但中文召回退化为按字切分 (unicode61 风格).
+    # 切换 enable_jieba 后需重建 FTS5 索引 (重启服务时若 fts.db 已存在,
+    # 旧索引仍按建表时的 tokenizer 工作; 需要 rm data/fts.db 重建).
+    enable_jieba: bool = True
+    # 用户自定义词典路径 (一行一个词, 可带词频和词性).
+    # e.g. /path/to/userdict.txt 内容:
+    #   花生过敏 1000 n
+    #   字节跳动 1000 nt
+    jieba_user_dict_path: Path | None = None
+
     def ensure_dirs(self) -> None:
         """确保所有运行时目录存在 — lifespan 启动时调用."""
         for d in [self.data_dir, self.chroma_dir, self.graph_dir, self.cold_dir]:
