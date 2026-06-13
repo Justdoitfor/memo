@@ -8,7 +8,14 @@
   - MemorySnapshotCache 按 user_id 缓存紧凑的"热记忆快照" (< 500 tokens)
   - 快照内容: Semantic 前 10 条事实 + Reflective 画像 + Implicit 偏好
   - 命中时延迟 <1ms, 远快于 recall (50-200ms)
-  - 缓存失效: 新的 Semantic/Reflective 写入时自动 invalidate
+  - 缓存失效: 新的 Semantic/Reflective 写入时调 invalidate(user_id)
+
+设计 (v2 — 版本号):
+  - 用单调递增版本号代替 TTL 时间戳
+  - 任何 invalidate 让该 user 的版本号 +1, cache miss 走 build
+  - 优点: 无 TTL 漂移窗口 ("写入后 5 分钟内可能拿旧数据" 这种问题不再有);
+    并发 set / invalidate 不会 KeyError
+  - 容量保护用 LRU 淘汰 (单调访问计数器); 不受 TTL 干扰
 
 Agent 使用方式:
   1. 每轮对话开始时读 memory://snapshot/{user_id} Resource (< 1ms)
@@ -17,8 +24,10 @@ Agent 使用方式:
 
 from __future__ import annotations
 
+import asyncio
 import time
-from typing import Any
+from collections import defaultdict
+from typing import Any, Awaitable, Callable
 
 from loguru import logger
 
@@ -26,45 +35,81 @@ from app.models import MemoryType
 
 
 class MemorySnapshotCache:
-    """LRU 缓存 — 紧凑热记忆快照, 命中时 < 1ms."""
+    """版本号 + LRU 缓存 — 命中时 < 1ms, 写入立即一致.
 
-    def __init__(self, max_users: int = 100, ttl_seconds: float = 300.0) -> None:
-        self._cache: dict[str, dict[str, Any]] = {}
-        self._timestamps: dict[str, float] = {}
+    线程安全: asyncio.Lock 保护 _cache / _versions / _access 三个 dict.
+    构建快照本身在锁外, 不阻塞其他 user 的读.
+    """
+
+    def __init__(self, max_users: int = 100) -> None:
+        # user_id → (cached_version, snapshot_dict)
+        self._cache: dict[str, tuple[int, dict[str, Any]]] = {}
+        # user_id → 当前版本号 (单调递增, invalidate 时 +1)
+        self._versions: dict[str, int] = defaultdict(int)
+        # user_id → LRU 访问计数 (容量淘汰用)
+        self._access: dict[str, int] = {}
+        self._counter = 0
         self._max_users = max_users
-        self._ttl = ttl_seconds
+        self._lock = asyncio.Lock()
 
-    def get(self, user_id: str) -> dict[str, Any] | None:
-        """读缓存, 过期则返回 None."""
-        if user_id not in self._cache:
-            return None
-        if time.monotonic() - self._timestamps[user_id] > self._ttl:
-            # TTL 过期, 主动淘汰
-            del self._cache[user_id]
-            del self._timestamps[user_id]
-            return None
-        return self._cache[user_id]
+    async def get_or_build(
+        self,
+        user_id: str,
+        builder: Callable[[str], Awaitable[dict[str, Any]]],
+    ) -> dict[str, Any]:
+        """读 cache, 命中且版本一致直接返回; 否则用 builder 构建后写回.
 
-    def set(self, user_id: str, snapshot: dict[str, Any]) -> None:
-        """写入缓存, 超容量时淘汰最早的."""
-        # 容量控制: 淘汰最旧条目
-        if len(self._cache) >= self._max_users and user_id not in self._cache:
-            oldest = min(self._timestamps, key=self._timestamps.get)
-            del self._cache[oldest]
-            del self._timestamps[oldest]
-        self._cache[user_id] = snapshot
-        self._timestamps[user_id] = time.monotonic()
+        builder 在锁外执行, 避免阻塞其它 user 的读取.
+        构建期间被 invalidate → 写回时检测到版本不一致, 不写 (避免覆盖更新版本).
+        """
+        async with self._lock:
+            cur_version = self._versions[user_id]
+            cached = self._cache.get(user_id)
+            if cached is not None:
+                v, snap = cached
+                if v == cur_version:
+                    self._counter += 1
+                    self._access[user_id] = self._counter
+                    return snap
+            # 即将走 build, 在锁内提前记录目标版本号
+            target_version = cur_version
+
+        # 锁外构建 (不阻塞其它 user)
+        snap = await builder(user_id)
+
+        async with self._lock:
+            # 容量保护: 淘汰最久未访问的
+            if len(self._cache) >= self._max_users and user_id not in self._cache:
+                if self._access:
+                    oldest = min(self._access, key=lambda k: self._access[k])
+                    self._cache.pop(oldest, None)
+                    self._access.pop(oldest, None)
+            # 仅在版本仍是 target_version 时才写回 (期间被 invalidate 则放弃, 下次重建)
+            if self._versions[user_id] == target_version:
+                self._cache[user_id] = (target_version, snap)
+                self._counter += 1
+                self._access[user_id] = self._counter
+            else:
+                logger.debug(
+                    f"snapshot_cache: build {user_id} 期间被 invalidate, "
+                    f"放弃写回 (target_v={target_version}, cur_v={self._versions[user_id]})"
+                )
+        return snap
 
     def invalidate(self, user_id: str) -> None:
-        """失效缓存 — Semantic/Reflective/Implicit 写入时调用."""
-        if user_id in self._cache:
-            del self._cache[user_id]
-            del self._timestamps[user_id]
+        """让该 user 下次读必 miss. 单调递增版本号, 不删 cache 项 (容量自然淘汰).
+
+        同步函数 — 业务路径调用方便. 内部仅一次 dict 写, 与 asyncio.Lock 不冲突
+        (defaultdict 的 __setitem__ 是原子的, asyncio 单线程不会切换).
+        """
+        self._versions[user_id] += 1
 
     def invalidate_all(self) -> None:
         """全量失效 — consolidate 或 profile refresh 后."""
-        self._cache.clear()
-        self._timestamps.clear()
+        # 给所有已知 user 的版本 +1; 未知 user 的 defaultdict 默认 0, 下次访问取 0,
+        # cache 中没有 → miss, 自动 build, 行为一致
+        for uid in list(self._versions.keys()):
+            self._versions[uid] += 1
 
 
 # 全局单例
@@ -114,13 +159,9 @@ async def build_snapshot(user_id: str) -> dict[str, Any]:
         "preferences": preferences,
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }
-    snapshot_cache.set(user_id, snapshot)
     return snapshot
 
 
 async def get_snapshot(user_id: str) -> dict[str, Any]:
-    """读快照 — 缓存命中时 < 1ms, 未命中时构建 (~10ms SQLite 查询)."""
-    cached = snapshot_cache.get(user_id)
-    if cached is not None:
-        return cached
-    return await build_snapshot(user_id)
+    """读快照 — 缓存命中时 < 1ms, 未命中时构建 (~10ms SQLite 直查, 不走向量)."""
+    return await snapshot_cache.get_or_build(user_id, build_snapshot)
