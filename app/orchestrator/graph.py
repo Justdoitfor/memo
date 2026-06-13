@@ -180,11 +180,14 @@ class MemoryOrchestrator:
         top_k: int | None = None,
         session_id: str | None = None,
         score_threshold: float | None = None,
+        valid_at: datetime | None = None,
     ) -> SearchResponse:
         """统一召回入口. 返回 RecallResult 列表 + 性能数据.
 
         Args:
             score_threshold: final_score 阈值, None 用默认, 0.0 关闭过滤.
+            valid_at: 时间过滤 — 仅返回该时刻有效的 Semantic 事实.
+                None 时返回所有候选 (默认行为). 见 router.search 详细说明.
         """
         start = time.perf_counter()
 
@@ -194,6 +197,7 @@ class MemoryOrchestrator:
             memory_types=types,
             top_k=top_k,
             score_threshold=score_threshold,
+            valid_at=valid_at,
         )
 
         # Working Memory 不进 ChromaDB, 必须显式注入到 Hybrid 召回结果中:

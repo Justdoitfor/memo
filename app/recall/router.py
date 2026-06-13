@@ -67,12 +67,18 @@ class HybridRecallRouter:
         top_k: int | None = None,
         weights: tuple[float, float, float, float] | None = None,
         score_threshold: float | None = None,
+        valid_at: datetime | None = None,
     ) -> list[RecallResult]:
         """主入口.
 
         Args:
             score_threshold: final_score 低于此值的结果被过滤. None 用 config 默认,
                 显式传 0.0 可拿到所有候选 (调试用).
+            valid_at: 时间过滤 — 仅返回该时刻有效的 Semantic 事实
+                (要求 valid_from <= valid_at <= valid_until).
+                None 时返回所有候选 (默认行为, 与历史兼容).
+                适用场景: "用户 2024 住哪？" — 业务方传 valid_at=datetime(2024,1,1).
+                只对 SEMANTIC 类型生效, Episodic 是历史事件本身, 不参与时间过滤.
         """
         top_k = top_k or config.default_top_k
         threshold = score_threshold if score_threshold is not None else _DEFAULT_VECTOR_THRESHOLD
@@ -173,6 +179,18 @@ class HybridRecallRouter:
                     logger.debug(
                         f"召回全部 {before} 条 vector_sim 均低于 {threshold:.2f}, 返回空"
                     )
+
+            # 4.5. valid_at 时间过滤 (Graphiti 风格) — 仅 Semantic 事实参与.
+            #      Agent 用例: "用户 2024 住哪？" → valid_at=2024-01-01
+            if valid_at is not None:
+                before = len(scored)
+                scored = [r for r in scored if self._is_valid_at(r.record, valid_at)]
+                if before and not scored:
+                    logger.debug(
+                        f"valid_at={valid_at.isoformat()} 过滤后无结果 "
+                        f"(候选 {before} 条都不在该时间窗口)"
+                    )
+
             scored.sort(key=lambda r: r.signals.final_score, reverse=True)
             top = scored[:top_k]
             for i, r in enumerate(top, 1):
@@ -266,6 +284,30 @@ class HybridRecallRouter:
             return _ENTITY_BOOST * 0.5
 
         return 0.0
+
+    @staticmethod
+    def _is_valid_at(record: MemoryRecord, valid_at: datetime) -> bool:
+        """判断记忆在 valid_at 时刻是否有效 (Graphiti 双时间轴语义).
+
+        规则:
+          - 仅 SEMANTIC 类型参与时间过滤. Episodic/Procedural 等是历史事件本身,
+            不存在"那时候是否成立"的问题
+          - valid_from 缺省视为 -∞, valid_until 缺省视为 +∞
+          - 时间戳格式损坏时保守视为有效 (不漏掉数据是默认)
+        """
+        if record.type != MemoryType.SEMANTIC:
+            return True
+        s = record.structured or {}
+        try:
+            vf = s.get("valid_from")
+            if vf and datetime.fromisoformat(str(vf)) > valid_at:
+                return False
+            vu = s.get("valid_until")
+            if vu and datetime.fromisoformat(str(vu)) < valid_at:
+                return False
+        except (TypeError, ValueError):
+            return True
+        return True
 
     @staticmethod
     def _is_expired_versioned(record: MemoryRecord, now: datetime) -> bool:

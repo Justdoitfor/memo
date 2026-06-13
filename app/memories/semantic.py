@@ -541,6 +541,10 @@ class SemanticMemory:
                 "object": triple.object,
                 "confidence": triple.confidence,
                 "pending_arbitration": pending,  # 延迟仲裁标记
+                # 同步 triple 的双时间轴 (Graphiti 风格), 召回侧 valid_at
+                # 过滤和 _is_expired_versioned 降权都依赖这两个字段.
+                "valid_from": triple.valid_from.isoformat() if triple.valid_from else None,
+                "valid_until": triple.valid_until.isoformat() if triple.valid_until else None,
             },
             importance=0.7,  # semantic 默认高重要度
             source="distilled" if triple.source_memory_id else "explicit",

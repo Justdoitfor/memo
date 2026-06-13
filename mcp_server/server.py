@@ -153,6 +153,8 @@ async def recall(
     memory_types: list[str] | None = None,
     top_k: int = 5,
     min_confidence: float = 0.55,
+    max_tokens: int | None = None,
+    valid_at: str | None = None,
 ) -> dict[str, Any]:
     """在回答用户问题前, 检索可能相关的历史记忆.
 
@@ -165,7 +167,16 @@ async def recall(
         memory_types: 可选, 限定类型 (episodic/semantic/procedural/reflective/implicit)
         top_k: 默认 5
         min_confidence: vector_sim 阈值, 默认 0.55 (低于则视为无关 → 返回空)
+        max_tokens: 返回结果总 token 预算上限. None 不限. 建议 Agent 侧设
+            6000~8000 避免上下文塞爆 (参考 Mem0 ~6900 tokens/query 实践).
+            按相关度倒序累加, 超预算前停止, 至少返回 1 条.
+        valid_at: ISO 时间戳 (e.g. '2024-06-01T00:00:00'), 仅返回该时刻有效的
+            Semantic 事实 (要求 valid_from <= valid_at <= valid_until).
+            None 时返回所有候选. 适用 "用户 2024 住哪？" 这类历史时刻问题.
+            仅对 SEMANTIC 类型生效.
     """
+    from datetime import datetime as _dt
+
     parsed_types: list[MemoryType] | None = None
     if memory_types:
         try:
@@ -175,6 +186,13 @@ async def recall(
                     return {"error": "Working 不对外暴露"}
         except ValueError as e:
             return {"error": str(e)}
+
+    parsed_valid_at: _dt | None = None
+    if valid_at:
+        try:
+            parsed_valid_at = _dt.fromisoformat(valid_at)
+        except (TypeError, ValueError):
+            return {"error": f"非法 valid_at, 需 ISO 时间戳格式: {valid_at!r}"}
 
     req = SearchRequest(
         user_id=user_id,
@@ -190,7 +208,21 @@ async def recall(
         top_k=req.top_k,
         session_id=req.session_id,
         score_threshold=req.score_threshold,
+        valid_at=parsed_valid_at,
     )
+
+    # Token 预算控制 (Mem0 风格): 按相关度倒序累加, 超预算前停止
+    if max_tokens and max_tokens > 0:
+        from app.utils.token_meter import truncate_to_budget
+        before = len(res.results)
+        res.results = truncate_to_budget(
+            res.results, max_tokens, lambda r: r.record.content,
+        )
+        if before != len(res.results):
+            logger.debug(
+                f"recall token 预算截断: {before} -> {len(res.results)} (budget={max_tokens})"
+            )
+
     return res.model_dump(mode="json")
 
 
