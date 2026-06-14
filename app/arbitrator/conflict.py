@@ -83,6 +83,7 @@ class ConflictArbitrator:
                         "confidence": f"{new_triple.confidence:.2f}",
                     },
                     temperature=0,
+                    purpose="arbitrator",
                 )
         except Exception as e:
             logger.warning(f"Arbitrator LLM 失败: {e}")

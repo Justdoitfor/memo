@@ -95,7 +95,8 @@ class ReflectiveMemory:
         try:
             with metrics.timer("reflective.refresh.latency"):
                 result = await llm_factory.structured_invoke(
-                    _REFLECT_PROMPT, _Profile, {"facts_text": facts_text}, temperature=0.2
+                    _REFLECT_PROMPT, _Profile, {"facts_text": facts_text},
+                    temperature=0.2, purpose="reflective_profile",
                 )
             if result is None:
                 raise RuntimeError("structured_invoke 返回 None")

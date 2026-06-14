@@ -128,6 +128,7 @@ async def mine_patterns_for_user(
                         "count": len(items),
                     },
                     temperature=0.3,
+                    purpose="pattern_miner",
                 )
             if result is None:
                 logger.warning(f"[PatternMiner] LLM 归纳失败 {signal_type}+{tag_list}")

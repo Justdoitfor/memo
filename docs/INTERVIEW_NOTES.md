@@ -22,13 +22,14 @@
 > - **LLM-as-Arbitrator 冲突消解** (REPLACE/MERGE/VERSIONED/IGNORE 四 action), prompt 版本化机制
 >
 > 工程化:
-> - 213 个 pytest 单测+集成测试 (含真 LLM e2e + 真 PG 容器), 56% 覆盖率, GitHub Actions CI
+> - **243 个 pytest 单测+集成测试** (含真 LLM e2e + 真 PG 容器), 56% 覆盖率, GitHub Actions CI
 > - 自建 80 条中文评测集 (8 scenario 分层) + 50 条 Arbitrator 标注集
 > - 三阶段 hyperparameter search (消融+裁剪 grid) 发现 README baseline 在 48 组中排名第 40
 > - bge-reranker-v2-m3 二阶段提升 nDCG@10 0.973 → 1.000, 但 P95 延迟 32ms → 436ms (13.5x)
 > - LLM Arbitrator 50 条标注集 accuracy 50/50, stability 5 次重跑 94% 完全一致
 > - PostgreSQL Store 通过继承 SQLiteMetadataStore + asyncpg, 真 PG 容器 15 契约测试全过, 业务方法零重写
 > - 规模化 benchmark 抓到 N+1 ChromaDB updates 生产 bug, 修复后 P50 320ms → 30ms (11x 加速); 100/1k/10k 规模 sub-linear scaling, PG vs SQLite 实测快 1.8x
+> - **Observability**: contextvars-based trace_id (async 安全 / 跨 await 传播 / 嵌套复用) + Prometheus /metrics endpoint (手写 exposition format, 不引入 prometheus_client) + LLM 成本计量 (5 个调用点 purpose tagged, 主流模型价格表)
 
 ---
 
@@ -140,14 +141,40 @@ A/B 测: 跑同一标注集 (`arbitrator_eval/dataset_v1.jsonl`) 对比 v1 vs v2
 
 **详见**: `app/orchestrator/graph.py:_is_likely_fact`
 
+### Q11: 线上 recall 慢了你怎么定位?
+
+**两个工具串联**:
+
+1. **trace_id 注入**: `app/utils/trace_context.py` 用 contextvars (async 安全) 给每次 MCP tool 调用生成 trace_id. orchestrator.write/search/forget 加了 `@traced` 装饰器, 函数内所有 logger 调用通过 loguru patcher 自动带 trace_id.
+2. **Prometheus /metrics**: 暴露 P50/P95/P99 各路径延迟 + counter / histogram / gauge / cost. Grafana 上设告警 `memocortex_recall_total_latency_milliseconds{quantile="0.95"} > 500`.
+
+排查流程: Grafana 告警 → 确定时间窗 → 翻 ELK 日志按 trace_id grep → 拉出整条调用链 (vector 召回 / BM25 / 算分 / metadata update) → 找到瓶颈段.
+
+JSON 格式 (生产, `MEMOCORTEX_LOG_FORMAT=json`) 直接给 ELK / Loki, 不用预处理.
+
+**详见**: `docs/OBSERVABILITY.md`
+
+### Q12: 你们 LLM 一天烧多少 token / 多少钱?
+
+`app/utils/cost_meter.py` 接到 `llm_factory.structured_invoke` 末尾自动调:
+- 每次 LLM 调用通过 LangChain BaseCallbackHandler 拿 `token_usage` (兼容 with_structured_output 路径)
+- 5 个调用点 (arbitrator / semantic_extractor / pattern_miner / reflective_profile / entity_resolver) 都 tagged `purpose`, 让成本可按用途聚合
+- 主流模型 (DeepSeek/GPT/Claude/Qwen) 真实价格表估算 USD, 未知模型走 _DEFAULT 兜底
+
+**PromQL 查询示例**:
+- 周成本: `increase(memocortex_llm_total_usd_total[7d])`
+- 哪个 purpose 烧最多: `topk(3, sum by (purpose) (increase(memocortex_llm_calls_total[1d])))`
+
+真实 demo: 一次 65 tokens 调用估算 $0.000058. 详见 `docs/OBSERVABILITY.md`.
+
 ---
 
 ## 三、真实数据卡片 (一句话报数, 不夸大)
 
 | 指标 | 数字 | 出处 |
 |---|---|---|
-| 测试总数 | **213** (198 默认 + 15 PG opt-in) | `tests/` |
-| 测试覆盖率 | **56.40%** | `pytest --cov=app` |
+| 测试总数 | **243** (228 默认 + 15 PG opt-in) | `tests/` |
+| 测试覆盖率 | 约 60% (P2 加了 45 个新单测) | `pytest --cov=app` |
 | 真实 LLM e2e 测试数 | 4 (DeepSeek 真调用) | `tests/integration/test_arbitrator_live.py` |
 | 评测集规模 (recall) | 80 条中文 8 scenario | `eval/datasets/memocortex_zh_v1.jsonl` |
 | 评测集规模 (arbitrator) | 50 条 4 action | `arbitrator_eval/dataset_v1.jsonl` |
@@ -163,6 +190,7 @@ A/B 测: 跑同一标注集 (`arbitrator_eval/dataset_v1.jsonl`) 对比 v1 vs v2
 | PG 契约测试 | **15 / 15** 真容器全过 | `tests/integration/test_pg_metadata_contract.py` |
 | **N+1 ChromaDB updates 修复** | P50 **320ms → 30ms (11x)** | `docs/BENCHMARK.md` |
 | **PG vs SQLite 单条 upsert** | PG 比 SQLite **快 1.8x** (6.8ms vs 12.5ms) | 同上 |
+| **Observability** | trace_id (13 单测) + Prometheus (15) + LLM 成本 (17) = **45 个新单测** | `docs/OBSERVABILITY.md` |
 
 ---
 
@@ -284,6 +312,28 @@ A/B 测: 跑同一标注集 (`arbitrator_eval/dataset_v1.jsonl`) 对比 v1 vs v2
 - 100/1k/10k 规模 P50 80/114/153 ms (sub-linear scaling)
 - PG vs SQLite 单条 upsert: PG 快 1.8x (实测)
 - bench/reports/latency_curves.png 三联图 (规模 / SQLite-PG / reranker)
+
+### 2026-06-14 P2.1 trace_id 注入 (commit 47a93bd)
+
+- contextvars-based trace 上下文, async 安全跨 await 传播
+- `traced` 装饰器自动给 orchestrator.write/search/forget 加 trace
+- loguru patcher 自动注入 trace_id, text + JSON 双格式
+- 13 个新单测 (并发 task 隔离 / 嵌套恢复 / 装饰器复用)
+
+### 2026-06-14 P2.2 Prometheus /metrics (commit ec9f643)
+
+- 手写 exposition format, 不依赖 prometheus_client
+- counter/summary/gauge/cost 4 类指标自动转换
+- /metrics 和 /health endpoint 注入到 FastMCP 的 Starlette app
+- 15 个新单测 (名称归一化 / 百分位 / 命名合规)
+
+### 2026-06-14 P2.3 LLM 成本计量
+
+- LangChain BaseCallbackHandler 拿 token_usage (兼容 with_structured_output 路径)
+- 5 个调用点 (arbitrator / semantic_extractor / pattern_miner / reflective_profile / entity_resolver) 全部 purpose tagged
+- 主流模型价格表 (DeepSeek / GPT / Claude / Qwen), 未知模型走默认兜底
+- 17 个新单测 (价格估算 / 模型名归一化 / 上下文管理器异常路径)
+- 真实 demo: 一次 65 tokens 调用估算 $0.000058
 
 ---
 

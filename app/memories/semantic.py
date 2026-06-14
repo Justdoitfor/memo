@@ -107,7 +107,8 @@ async def extract_triples(text: str) -> list[Triple]:
     try:
         with metrics.timer("semantic.extract.latency"):
             result = await llm_factory.structured_invoke(
-                _EXTRACT_PROMPT, _ExtractResult, {"text": text}, temperature=0
+                _EXTRACT_PROMPT, _ExtractResult, {"text": text},
+                temperature=0, purpose="semantic_extractor",
             )
         if result is None:
             return []
