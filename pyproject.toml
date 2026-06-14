@@ -55,6 +55,10 @@ eval = [
     "datasets>=2.16.0",  # HuggingFace datasets 加载 LongMemEval
     "matplotlib>=3.8.0",  # grid search Pareto 散点图
 ]
+postgres = [
+    # 生产替换 SQLite 时启用 (P1.3): 仅 MetadataStore 走 PG, 其他存储不变
+    "asyncpg>=0.29.0",
+]
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]

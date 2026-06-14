@@ -69,3 +69,11 @@ Thumbs.db
 # Eval runtime artifacts
 eval/reports/memocortex_zh_v1_*.md
 eval/reports/run_*.md
+
+# Skill artifacts
+.github/skills/
+
+# Stray Node artifacts (not a Node project)
+package.json
+package-lock.json
+node_modules/

@@ -300,6 +300,7 @@ class EntityResolver:
                     "candidates": candidates_text,
                 },
                 temperature=0,
+                purpose="entity_resolver",
             )
             if result is not None:
                 return result

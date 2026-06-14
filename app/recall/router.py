@@ -191,6 +191,13 @@ class HybridRecallRouter:
                         f"(候选 {before} 条都不在该时间窗口)"
                     )
 
+            # 4.7. P1: 二阶段 reranker (可选) — bge-reranker-v2-m3 cross-encoder 重排
+            #     - 拿 top_k_before_rerank (默认 30) 条进 reranker
+            #     - sigmoid 后的分数加权融合到 final_score
+            #     - 性能代价: ~100-300ms / 30 条, 默认关闭
+            if config.enable_reranker and scored:
+                scored = await self._apply_reranker(query, scored)
+
             scored.sort(key=lambda r: r.signals.final_score, reverse=True)
             top = scored[:top_k]
             for i, r in enumerate(top, 1):
@@ -208,19 +215,36 @@ class HybridRecallRouter:
     async def _batch_update_recall_meta(
         self, results: list[RecallResult], user_id: str, now: datetime
     ) -> None:
-        """后台批量更新召回元数据 — fire-and-forget, 不阻塞返回."""
-        for r in results:
-            try:
-                await self._vector.update_metadata(
+        """后台批量更新召回元数据 — fire-and-forget, 不阻塞返回.
+
+        优化 (P1.4): 用 update_metadata_batch 一次 get + 一次 update,
+        N 倍快于循环 update_metadata. 在 100+ 条数据规模下从 360ms (top-8 串行)
+        降到 ~50ms — 详见 docs/BENCHMARK.md.
+        """
+        if not results:
+            return
+        try:
+            updates = [
+                (
                     r.record.id,
-                    user_id,
                     {
                         "recall_count": r.record.recall_count + 1,
                         "last_recalled_at_iso": now.isoformat(),
                     },
                 )
-            except Exception:
-                pass
+                for r in results
+            ]
+            # 优先用 batch API; 不支持时降级循环调 update_metadata
+            if hasattr(self._vector, "update_metadata_batch"):
+                await self._vector.update_metadata_batch(updates, user_id=user_id)
+            else:
+                for memory_id, patch in updates:
+                    try:
+                        await self._vector.update_metadata(memory_id, user_id, patch)
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.debug(f"_batch_update_recall_meta 失败 (fire-and-forget, 不影响主流程): {e}")
 
     async def _fetch_records_by_ids(
         self, user_id: str, memory_ids: list[str]
@@ -327,6 +351,46 @@ class HybridRecallRouter:
             return valid_until < now
         except (TypeError, ValueError):
             return False
+
+    async def _apply_reranker(
+        self, query: str, scored: list[RecallResult],
+    ) -> list[RecallResult]:
+        """P1: 二阶段 reranker — 用 bge-reranker-v2-m3 重新打分 + 加权融合.
+
+        - 取 top_k_before_rerank 条进 reranker (按一阶段 final_score 排序后截断)
+        - 加权融合: final_score = reranker × reranker_weight + final × (1 - reranker_weight)
+        - 截断之外的候选保留原 final_score 不变 (它们本来就排在后面, 不影响 top-K)
+
+        失败时降级仅返回原 scored, 不破坏召回主路径.
+        """
+        try:
+            from app.recall.reranker import async_rerank_pairs, fuse_with_reranker
+
+            # 按 final_score 排序后截 top-N 进 reranker
+            scored.sort(key=lambda r: r.signals.final_score, reverse=True)
+            n_rerank = min(config.top_k_before_rerank, len(scored))
+            to_rerank = scored[:n_rerank]
+            keep_as_is = scored[n_rerank:]
+
+            with metrics.timer("recall.reranker.latency"):
+                pairs = [(query, r.record.content) for r in to_rerank]
+                reranker_scores = await async_rerank_pairs(pairs)
+
+            # 融合: reranker × w + final × (1-w)
+            for r, rs in zip(to_rerank, reranker_scores):
+                # 把 reranker 原始分数挂在 record 上, 便于 debug / 评测可解释
+                r.record.structured = dict(r.record.structured or {})
+                r.record.structured["_reranker_raw"] = round(rs, 4)
+                r.signals.final_score = fuse_with_reranker(
+                    r.signals.final_score, rs,
+                )
+
+            metrics.incr("recall.reranker.applied", n_rerank)
+            return to_rerank + keep_as_is
+        except Exception as e:
+            logger.warning(f"Reranker 失败, 降级仅一阶段: {e}")
+            metrics.incr("recall.reranker.failed")
+            return scored
 
 
 # 全局单例

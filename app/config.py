@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     # ── MCP 服务端口 ──────────────────────────────────────────────────
     mcp_port: int = 8766
 
+    # ── PostgreSQL (生产替换 SQLite, P1.3) ────────────────────────────
+    # MVP 用 SQLite; 生产切 PG 仅需设置 MEMOCORTEX_PG_URL 环境变量.
+    # 格式: postgresql+asyncpg://user:pass@host:5432/dbname
+    # 设置后 storage 层自动切 PostgresMetadataStore, ChromaDB / KG / FTS 不变.
+    pg_url: str = ""
+
     # ── 记忆参数 ──────────────────────────────────────────────────────
     working_capacity: int = 20
     episodic_ttl_days: int = 30
@@ -79,6 +85,17 @@ class Settings(BaseSettings):
     recall_w_importance: float = 0.20
     temporal_tau_days: float = 30.0
 
+    # ── Reranker (二阶段重排, 可选) ───────────────────────────────────
+    # 默认关闭, 开启后召回路径走两阶段:
+    #   1. 一阶段拿 top_k_before_rerank (默认 30) 候选
+    #   2. bge-reranker-v2-m3 cross-encoder 重排
+    #   3. 加权融合 reranker 分数和一阶段 final_score
+    # 性能代价: rerank 30 条 ~ 100-300ms (CPU), 显著高于一阶段 ~25ms.
+    enable_reranker: bool = False
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    reranker_weight: float = 0.7  # rerank × 0.7 + final_score × 0.3
+    top_k_before_rerank: int = 30  # 拿多少条进 reranker (越大越准, 越慢)
+
     # ── 反思 Worker 间隔 ──────────────────────────────────────────────
     reflect_distill_interval_sec: int = 3600
     reflect_merge_interval_sec: int = 7200
@@ -89,6 +106,11 @@ class Settings(BaseSettings):
     # ── 调试 ──────────────────────────────────────────────────────────
     debug: bool = False
     log_level: str = "INFO"
+
+    # ── Observability (P2.1) ───────────────────────────────────────────
+    # log_format: text (默认, 人读 + 颜色) 或 json (生产 ELK / Loki / Grafana)
+    # 切 json 时所有日志带 trace_id 字段, 适合 stdout → docker logs → 集中式日志系统
+    log_format: str = "text"
 
     # ── 中文分词 (BM25 路径) ──────────────────────────────────────────
     # 关闭后 FTS5 仍可工作但中文召回退化为按字切分 (unicode61 风格).

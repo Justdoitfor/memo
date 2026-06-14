@@ -609,4 +609,27 @@ if __name__ == "__main__":
                 f"track_signal / reflect / manage_memory / "
                 f"graph_query / list_entities / entity_merge")
     logger.info(f"  Resources: memory://summary|profile|workflows|snapshot|entities/{{user_id}}")
-    mcp.run(transport="streamable-http", host="127.0.0.1", port=config.mcp_port, path="/mcp")
+    logger.info(f"  Metrics:   http://127.0.0.1:{config.mcp_port}/metrics (Prometheus 格式)")
+
+    # P2.2: 加 Prometheus /metrics endpoint 到 FastMCP 的 Starlette app
+    from starlette.requests import Request
+    from starlette.responses import Response
+
+    from app.utils.prometheus import PROMETHEUS_CONTENT_TYPE, render_prometheus_metrics
+
+    async def _metrics_endpoint(request: Request) -> Response:
+        """Prometheus /metrics endpoint — 文本格式, 暴露 counter / histogram / gauge."""
+        body = render_prometheus_metrics()
+        return Response(content=body, media_type=PROMETHEUS_CONTENT_TYPE)
+
+    async def _health_endpoint(request: Request) -> Response:
+        """健康检查 — k8s liveness / readiness probe 用."""
+        return Response(content='{"status":"ok"}', media_type="application/json")
+
+    # 构建 Starlette app, 注入额外路由再启动
+    app = mcp.http_app(path="/mcp", transport="streamable-http")
+    app.add_route("/metrics", _metrics_endpoint, methods=["GET"])
+    app.add_route("/health", _health_endpoint, methods=["GET"])
+
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=config.mcp_port, log_level="info")

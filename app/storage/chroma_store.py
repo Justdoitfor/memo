@@ -143,6 +143,58 @@ class ChromaVectorStore:
             logger.error(f"update_metadata 失败: {e}")
             return False
 
+    async def update_metadata_batch(
+        self,
+        updates: list[tuple[str, dict[str, Any]]],
+        user_id: str | None = None,
+    ) -> int:
+        """批量更新 metadata — 一次 get + 一次 update, N 倍快于循环调 update_metadata.
+
+        recall 路径用此 API: 每次 recall 后批量更新 top-K 的 last_recalled_at / recall_count.
+        循环调 update_metadata 会触发 N 次 ChromaDB IO (每次 ~45ms), 在 100+ 条数据规模下成为瓶颈
+        (P95 延迟 477ms 大部分被这步占, 见 docs/BENCHMARK.md).
+
+        Args:
+            updates: [(memory_id, patch_dict), ...]
+            user_id: 可选, 校验所有 memory 都属于该 user (防止跨 user metadata 泄漏)
+
+        Returns:
+            实际更新成功的条数 (skip 不存在或 user_id 不匹配的)
+        """
+        if not updates:
+            return 0
+        ids = [mid for mid, _ in updates]
+        try:
+            # 一次 get 拿全部现有 metadata
+            res = self._collection.get(ids=ids)
+            existing_ids = res.get("ids") or []
+            existing_metas = res.get("metadatas") or []
+            if not existing_ids:
+                return 0
+
+            # 构建 id → existing_meta 映射
+            id_to_meta = dict(zip(existing_ids, existing_metas, strict=False))
+
+            # 合并 patch, 跳过 user_id 不匹配
+            final_ids = []
+            final_metas = []
+            for mid, patch in updates:
+                existing = id_to_meta.get(mid)
+                if existing is None:
+                    continue
+                if user_id is not None and existing.get("user_id") != user_id:
+                    logger.warning(f"update_metadata_batch: user_id 不匹配 {mid}")
+                    continue
+                final_ids.append(mid)
+                final_metas.append({**existing, **patch})
+
+            if final_ids:
+                self._collection.update(ids=final_ids, metadatas=final_metas)
+            return len(final_ids)
+        except Exception as e:
+            logger.error(f"update_metadata_batch 失败 ({len(ids)} ids): {e}")
+            return 0
+
     async def delete(self, memory_id: str, user_id: str) -> bool:
         try:
             self._collection.delete(ids=[memory_id], where={"user_id": user_id})
