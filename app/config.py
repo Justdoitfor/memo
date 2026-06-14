@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     # ── MCP 服务端口 ──────────────────────────────────────────────────
     mcp_port: int = 8766
 
+    # ── PostgreSQL (生产替换 SQLite, P1.3) ────────────────────────────
+    # MVP 用 SQLite; 生产切 PG 仅需设置 MEMOCORTEX_PG_URL 环境变量.
+    # 格式: postgresql+asyncpg://user:pass@host:5432/dbname
+    # 设置后 storage 层自动切 PostgresMetadataStore, ChromaDB / KG / FTS 不变.
+    pg_url: str = ""
+
     # ── 记忆参数 ──────────────────────────────────────────────────────
     working_capacity: int = 20
     episodic_ttl_days: int = 30
