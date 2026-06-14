@@ -65,3 +65,7 @@ Thumbs.db
 .codegraph/
 
 # uv lock kept; per-repo policy may vary
+
+# Eval runtime artifacts
+eval/reports/memocortex_zh_v1_*.md
+eval/reports/run_*.md
