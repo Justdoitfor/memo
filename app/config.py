@@ -79,6 +79,17 @@ class Settings(BaseSettings):
     recall_w_importance: float = 0.20
     temporal_tau_days: float = 30.0
 
+    # ── Reranker (二阶段重排, 可选) ───────────────────────────────────
+    # 默认关闭, 开启后召回路径走两阶段:
+    #   1. 一阶段拿 top_k_before_rerank (默认 30) 候选
+    #   2. bge-reranker-v2-m3 cross-encoder 重排
+    #   3. 加权融合 reranker 分数和一阶段 final_score
+    # 性能代价: rerank 30 条 ~ 100-300ms (CPU), 显著高于一阶段 ~25ms.
+    enable_reranker: bool = False
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    reranker_weight: float = 0.7  # rerank × 0.7 + final_score × 0.3
+    top_k_before_rerank: int = 30  # 拿多少条进 reranker (越大越准, 越慢)
+
     # ── 反思 Worker 间隔 ──────────────────────────────────────────────
     reflect_distill_interval_sec: int = 3600
     reflect_merge_interval_sec: int = 7200
