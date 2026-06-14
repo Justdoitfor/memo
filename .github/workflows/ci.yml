@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Cache HuggingFace embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-bge-small-zh-v1.5
+
+      # Lint: 不阻塞 CI 失败 (项目还在快速迭代), 仅做信息展示
+      - name: Lint with ruff
+        run: uv run ruff check app/ mcp_server/ tests/ || true
+
+      # 默认跳过 live_llm — CI 不连真模型, 避免烧 quota
+      - name: Run tests with coverage
+        run: |
+          uv run pytest tests/ \
+            --cov=app \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            -m "not live_llm"
+        env:
+          # 显式留空, 让 conftest 跳过 live_llm 标记
+          MEMOCORTEX_LLM_API_KEY: ""
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: ignore
