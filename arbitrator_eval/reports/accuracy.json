@@ -1,0 +1,604 @@
+{
+  "n_total": 50,
+  "n_correct": 50,
+  "accuracy": 1.0,
+  "confusion": {
+    "replace": {
+      "replace": 12,
+      "merge": 0,
+      "versioned": 0,
+      "ignore": 0
+    },
+    "merge": {
+      "replace": 0,
+      "merge": 12,
+      "versioned": 0,
+      "ignore": 0
+    },
+    "versioned": {
+      "replace": 0,
+      "merge": 0,
+      "versioned": 12,
+      "ignore": 0
+    },
+    "ignore": {
+      "replace": 0,
+      "merge": 0,
+      "versioned": 0,
+      "ignore": 14
+    }
+  },
+  "by_expected_action": {
+    "replace": {
+      "n": 12,
+      "correct": 12
+    },
+    "merge": {
+      "n": 12,
+      "correct": 12
+    },
+    "versioned": {
+      "n": 12,
+      "correct": 12
+    },
+    "ignore": {
+      "n": 14,
+      "correct": 14
+    }
+  },
+  "results": [
+    {
+      "id": "arb-001",
+      "category": "replace_clear_move",
+      "expected": "replace",
+      "actual": "replace",
+      "correct": true,
+      "reasoning": "lives_in是单值字段，新事实置信度更高且时间更新，应替换旧事实",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 3289.88
+    },
+    {
+      "id": "arb-002",
+      "category": "replace_job_change",
+      "expected": "replace",
+      "actual": "replace",
+      "correct": true,
+      "reasoning": "unique字段，新事实置信度更高且合理代表职业变更",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2690.64
+    },
+    {
+      "id": "arb-003",
+      "category": "replace_age_increment",
+      "expected": "replace",
+      "actual": "replace",
+      "correct": true,
+      "reasoning": "年龄是唯一值字段，新事实置信度高且时间更近，应替换旧事实。",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2354.57
+    },
+    {
+      "id": "arb-004",
+      "category": "replace_phone",
+      "expected": "replace",
+      "actual": "replace",
+      "correct": true,
+      "reasoning": "字段语义为 unique，新事实置信度高，用户可能升级了手机。",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2163.39
+    },
+    {
+      "id": "arb-005",
+      "category": "replace_car",
+      "expected": "replace",
+      "actual": "replace",
+      "correct": true,
+      "reasoning": "语义唯一且新事实置信度更高，用户可能已更换车辆",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2531.3
+    },
+    {
+      "id": "arb-006",
+      "category": "replace_marital",
+      "expected": "replace",
+      "actual": "replace",
+      "correct": true,
+      "reasoning": "已婚字段语义为unique，新事实置信度0.92高于旧事实0.90，应替换旧配偶信息",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 1910.07
+    },
+    {
+      "id": "arb-007",
+      "category": "replace_weight",
+      "expected": "replace",
+      "actual": "replace",
+      "correct": true,
+      "reasoning": "体重为唯一值字段，新事实置信度更高，且用户体重可能正常变化，应替换旧事实。",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2746.3
+    },
+    {
+      "id": "arb-008",
+      "category": "replace_email",
+      "expected": "replace",
+      "actual": "replace",
+      "correct": true,
+      "reasoning": "邮箱字段唯一，且新事实置信度更高，应更新为新邮箱",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2275.92
+    },
+    {
+      "id": "arb-009",
+      "category": "replace_occupation",
+      "expected": "replace",
+      "actual": "replace",
+      "correct": true,
+      "reasoning": "职业为单值字段，新事实置信度更高且合理，应替换旧事实",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 1560.74
+    },
+    {
+      "id": "arb-010",
+      "category": "replace_height_correction",
+      "expected": "replace",
+      "actual": "replace",
+      "correct": true,
+      "reasoning": "height_cm 是单值字段，新事实置信度更高，应替换旧事实",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2461.42
+    },
+    {
+      "id": "arb-011",
+      "category": "replace_blood_type_correction",
+      "expected": "replace",
+      "actual": "replace",
+      "correct": true,
+      "reasoning": "新事实置信度远高于旧事实，且字段为 unique，应替换。",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 1866.53
+    },
+    {
+      "id": "arb-012",
+      "category": "replace_favorite_color",
+      "expected": "replace",
+      "actual": "replace",
+      "correct": true,
+      "reasoning": "字段语义为 unique, 新事实置信度不低于旧, 启发式替换",
+      "confidence": 0.6,
+      "merged_value": null,
+      "latency_ms": 1711.78
+    },
+    {
+      "id": "arb-013",
+      "category": "merge_allergy_disjoint",
+      "expected": "merge",
+      "actual": "merge",
+      "correct": true,
+      "reasoning": "字段语义为list，新事实与旧事实属于同类过敏原，应合并存储",
+      "confidence": 0.95,
+      "merged_value": "花生,芝麻",
+      "latency_ms": 1602.95
+    },
+    {
+      "id": "arb-014",
+      "category": "merge_allergy_three",
+      "expected": "merge",
+      "actual": "merge",
+      "correct": true,
+      "reasoning": "list字段应保留所有过敏原，新过敏原置信度高，可合并",
+      "confidence": 0.95,
+      "merged_value": "花生,乳糖,芒果",
+      "latency_ms": 3400.07
+    },
+    {
+      "id": "arb-015",
+      "category": "merge_likes_overlap",
+      "expected": "merge",
+      "actual": "merge",
+      "correct": true,
+      "reasoning": "字段是list类型，新事实是已有事实，合并后无变化，但遵循list优先合并原则。",
+      "confidence": 0.95,
+      "merged_value": "跑步,游泳",
+      "latency_ms": 3439.6
+    },
+    {
+      "id": "arb-016",
+      "category": "merge_pets",
+      "expected": "merge",
+      "actual": "merge",
+      "correct": true,
+      "reasoning": "多值字段，新旧事实均为宠物，应合并保留",
+      "confidence": 0.95,
+      "merged_value": "小白(猫),汪汪(狗)",
+      "latency_ms": 1510.2
+    },
+    {
+      "id": "arb-017",
+      "category": "merge_languages",
+      "expected": "merge",
+      "actual": "merge",
+      "correct": true,
+      "reasoning": "speaks_language 是 list 字段，应保留所有已知语言",
+      "confidence": 0.95,
+      "merged_value": "中文,英语,日语",
+      "latency_ms": 2122.9
+    },
+    {
+      "id": "arb-018",
+      "category": "merge_hobbies",
+      "expected": "merge",
+      "actual": "merge",
+      "correct": true,
+      "reasoning": "list字段应保留所有爱好",
+      "confidence": 0.95,
+      "merged_value": "摄影,登山",
+      "latency_ms": 1542.85
+    },
+    {
+      "id": "arb-019",
+      "category": "merge_visited_cities",
+      "expected": "merge",
+      "actual": "merge",
+      "correct": true,
+      "reasoning": "list 字段，应保留所有访问记录",
+      "confidence": 0.95,
+      "merged_value": "东京,巴黎,纽约",
+      "latency_ms": 2173.43
+    },
+    {
+      "id": "arb-020",
+      "category": "merge_dislikes",
+      "expected": "merge",
+      "actual": "merge",
+      "correct": true,
+      "reasoning": "字段语义为list，新事实可安全合并，保留所有不喜欢项",
+      "confidence": 0.95,
+      "merged_value": "芒果,香菜",
+      "latency_ms": 2506.18
+    },
+    {
+      "id": "arb-021",
+      "category": "merge_children",
+      "expected": "merge",
+      "actual": "merge",
+      "correct": true,
+      "reasoning": "list 字段，应保留所有孩子",
+      "confidence": 0.99,
+      "merged_value": "大宝,二宝",
+      "latency_ms": 1487.55
+    },
+    {
+      "id": "arb-022",
+      "category": "merge_skills",
+      "expected": "merge",
+      "actual": "merge",
+      "correct": true,
+      "reasoning": "list字段，应保留所有技能，新技能可直接合并",
+      "confidence": 0.95,
+      "merged_value": "Python,Go,Rust",
+      "latency_ms": 1939.23
+    },
+    {
+      "id": "arb-023",
+      "category": "merge_overlap_three",
+      "expected": "merge",
+      "actual": "merge",
+      "correct": true,
+      "reasoning": "字段语义为list，新事实'花生'已存在于旧事实中，合并后列表不变。",
+      "confidence": 0.95,
+      "merged_value": "花生,芝麻",
+      "latency_ms": 3883.79
+    },
+    {
+      "id": "arb-024",
+      "category": "merge_favorite_food_multi",
+      "expected": "merge",
+      "actual": "merge",
+      "correct": true,
+      "reasoning": "list 字段，应保留所有喜欢的食物",
+      "confidence": 0.95,
+      "merged_value": "川菜,粤菜",
+      "latency_ms": 1932.4
+    },
+    {
+      "id": "arb-025",
+      "category": "versioned_worked_in_past",
+      "expected": "versioned",
+      "actual": "versioned",
+      "correct": true,
+      "reasoning": "字段语义为 versioned，北京和上海均可保留，标记不同时间区间。",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 1870.84
+    },
+    {
+      "id": "arb-026",
+      "category": "versioned_lived_in",
+      "expected": "versioned",
+      "actual": "versioned",
+      "correct": true,
+      "reasoning": "字段语义为 versioned，新事实杭州与已有广州、深圳可视为不同时间段的居住地，应同时保留并标记时间区间。",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2173.17
+    },
+    {
+      "id": "arb-027",
+      "category": "versioned_studied_at",
+      "expected": "versioned",
+      "actual": "versioned",
+      "correct": true,
+      "reasoning": "字段语义为versioned，时间敏感，应同时保留两个事实，标记时间有效区间",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2596.8
+    },
+    {
+      "id": "arb-028",
+      "category": "versioned_planned_move",
+      "expected": "versioned",
+      "actual": "versioned",
+      "correct": true,
+      "reasoning": "字段语义为 versioned 且新事实是计划搬迁，时间敏感，应同时保留当前住址和未来计划。",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2654.66
+    },
+    {
+      "id": "arb-029",
+      "category": "versioned_will_visit",
+      "expected": "versioned",
+      "actual": "versioned",
+      "correct": true,
+      "reasoning": "字段语义为 versioned，应保留多个时间相关的事实。",
+      "confidence": 0.9,
+      "merged_value": null,
+      "latency_ms": 2358.98
+    },
+    {
+      "id": "arb-030",
+      "category": "versioned_history_replace_keyword",
+      "expected": "versioned",
+      "actual": "versioned",
+      "correct": true,
+      "reasoning": "字段语义为 versioned，应保留历史时间区间，同时添加新工作记录",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2078.74
+    },
+    {
+      "id": "arb-031",
+      "category": "versioned_planned_event",
+      "expected": "versioned",
+      "actual": "versioned",
+      "correct": true,
+      "reasoning": "字段语义为 versioned，且新旧事实为不同事件，应保留各自时间区间",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2900.62
+    },
+    {
+      "id": "arb-032",
+      "category": "versioned_owned_car_past",
+      "expected": "versioned",
+      "actual": "versioned",
+      "correct": true,
+      "reasoning": "字段语义是versioned，且新旧事实置信度均高，应同时保留并记录时间区间。",
+      "confidence": 0.9,
+      "merged_value": null,
+      "latency_ms": 2470.14
+    },
+    {
+      "id": "arb-033",
+      "category": "versioned_relationship_history",
+      "expected": "versioned",
+      "actual": "versioned",
+      "correct": true,
+      "reasoning": "字段语义为versioned，新事实与旧事实时间上可能不同，应作为独立版本保留",
+      "confidence": 0.85,
+      "merged_value": null,
+      "latency_ms": 4293.47
+    },
+    {
+      "id": "arb-034",
+      "category": "versioned_lived_in_period",
+      "expected": "versioned",
+      "actual": "versioned",
+      "correct": true,
+      "reasoning": "时间敏感事实，新旧事实时间不重叠，应同时保留并标记有效区间",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 1906.44
+    },
+    {
+      "id": "arb-035",
+      "category": "versioned_education_phases",
+      "expected": "versioned",
+      "actual": "versioned",
+      "correct": true,
+      "reasoning": "字段语义为 versioned，新事实是新的教育经历，应与已有事实并存并标记时间区间",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2857.54
+    },
+    {
+      "id": "arb-036",
+      "category": "versioned_will_work_at",
+      "expected": "versioned",
+      "actual": "versioned",
+      "correct": true,
+      "reasoning": "字段语义是 versioned，应保留时间区间，新事实与旧事实不冲突但需标记时间",
+      "confidence": 0.9,
+      "merged_value": null,
+      "latency_ms": 1937.5
+    },
+    {
+      "id": "arb-037",
+      "category": "ignore_low_confidence",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实置信度极低，且字段语义为唯一值，旧事实高度可信",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2107.25
+    },
+    {
+      "id": "arb-038",
+      "category": "ignore_age_decrease",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实年龄25比旧事实30小，置信度较低，年龄通常只增不减，故忽略",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2126.67
+    },
+    {
+      "id": "arb-039",
+      "category": "ignore_low_conf_blood_type",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实置信度低且与已有事实矛盾，不应覆盖已有高置信度事实。",
+      "confidence": 0.85,
+      "merged_value": null,
+      "latency_ms": 2005.99
+    },
+    {
+      "id": "arb-040",
+      "category": "ignore_marital_unclear",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实置信度低且表述含糊，与已有高置信度事实矛盾",
+      "confidence": 0.9,
+      "merged_value": null,
+      "latency_ms": 1841.44
+    },
+    {
+      "id": "arb-041",
+      "category": "ignore_email_typo",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实置信度低且与高置信度旧事实冲突，可能是拼写错误。",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2632.2
+    },
+    {
+      "id": "arb-042",
+      "category": "ignore_height_implausible",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实置信度低且与高置信度旧事实矛盾，可能是错误信息",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2221.06
+    },
+    {
+      "id": "arb-043",
+      "category": "ignore_weight_extreme",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实置信度极低且与高置信度旧事实严重矛盾，不应更新",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2284.49
+    },
+    {
+      "id": "arb-044",
+      "category": "ignore_phone_low_conf",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实置信度低且表述含糊，无法可靠替换唯一值字段。",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 1944.06
+    },
+    {
+      "id": "arb-045",
+      "category": "ignore_hometown_change",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实置信度低，且与已有高置信度事实矛盾，不应写入语义记忆。",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2063.14
+    },
+    {
+      "id": "arb-046",
+      "category": "ignore_gender_low_conf",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实置信度低且与旧事实矛盾",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 1703.28
+    },
+    {
+      "id": "arb-047",
+      "category": "ignore_education_downgrade",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实置信度极低，且与高置信度已有事实矛盾，不适合替换或合并",
+      "confidence": 0.9,
+      "merged_value": null,
+      "latency_ms": 2390.06
+    },
+    {
+      "id": "arb-048",
+      "category": "ignore_inconsistent_subject",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实模糊且置信度低，与已有事实矛盾，不写入语义记忆",
+      "confidence": 0.85,
+      "merged_value": null,
+      "latency_ms": 1788.51
+    },
+    {
+      "id": "arb-049",
+      "category": "ignore_partial_confidence",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实置信度低且表述含糊，与已有高置信度事实矛盾，不宜更新",
+      "confidence": 0.85,
+      "merged_value": null,
+      "latency_ms": 2068.3
+    },
+    {
+      "id": "arb-050",
+      "category": "ignore_blank_object",
+      "expected": "ignore",
+      "actual": "ignore",
+      "correct": true,
+      "reasoning": "新事实置信度极低且表述含糊，无法取代高置信度的已有事实。",
+      "confidence": 0.95,
+      "merged_value": null,
+      "latency_ms": 2155.83
+    }
+  ],
+  "latency_avg_ms": 2290.7,
+  "latency_max_ms": 4293.47,
+  "timestamp": "2026-06-14T14:27:52.138848"
+}

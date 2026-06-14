@@ -1,0 +1,914 @@
+{
+  "n_entries": 50,
+  "n_runs_per_entry": 5,
+  "total_calls": 250,
+  "avg_mode_rate": 0.984,
+  "perfect_consistency_pct": 0.94,
+  "majority_match_expected_pct": 0.98,
+  "unstable_cases": [
+    {
+      "id": "arb-006",
+      "category": "replace_marital",
+      "expected": "replace",
+      "runs": [
+        "replace",
+        "replace",
+        "replace",
+        "replace",
+        "versioned"
+      ],
+      "distinct_actions": 2,
+      "mode_action": "replace",
+      "mode_rate": 0.8,
+      "perfectly_consistent": false,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-015",
+      "category": "merge_likes_overlap",
+      "expected": "merge",
+      "runs": [
+        "ignore",
+        "ignore",
+        "merge",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 2,
+      "mode_action": "ignore",
+      "mode_rate": 0.8,
+      "perfectly_consistent": false,
+      "matches_expected": false
+    },
+    {
+      "id": "arb-023",
+      "category": "merge_overlap_three",
+      "expected": "merge",
+      "runs": [
+        "ignore",
+        "merge",
+        "merge",
+        "merge",
+        "ignore"
+      ],
+      "distinct_actions": 2,
+      "mode_action": "merge",
+      "mode_rate": 0.6,
+      "perfectly_consistent": false,
+      "matches_expected": true
+    }
+  ],
+  "per_entry_stats": [
+    {
+      "id": "arb-001",
+      "category": "replace_clear_move",
+      "expected": "replace",
+      "runs": [
+        "replace",
+        "replace",
+        "replace",
+        "replace",
+        "replace"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "replace",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-002",
+      "category": "replace_job_change",
+      "expected": "replace",
+      "runs": [
+        "replace",
+        "replace",
+        "replace",
+        "replace",
+        "replace"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "replace",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-003",
+      "category": "replace_age_increment",
+      "expected": "replace",
+      "runs": [
+        "replace",
+        "replace",
+        "replace",
+        "replace",
+        "replace"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "replace",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-004",
+      "category": "replace_phone",
+      "expected": "replace",
+      "runs": [
+        "replace",
+        "replace",
+        "replace",
+        "replace",
+        "replace"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "replace",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-005",
+      "category": "replace_car",
+      "expected": "replace",
+      "runs": [
+        "replace",
+        "replace",
+        "replace",
+        "replace",
+        "replace"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "replace",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-006",
+      "category": "replace_marital",
+      "expected": "replace",
+      "runs": [
+        "replace",
+        "replace",
+        "replace",
+        "replace",
+        "versioned"
+      ],
+      "distinct_actions": 2,
+      "mode_action": "replace",
+      "mode_rate": 0.8,
+      "perfectly_consistent": false,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-007",
+      "category": "replace_weight",
+      "expected": "replace",
+      "runs": [
+        "replace",
+        "replace",
+        "replace",
+        "replace",
+        "replace"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "replace",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-008",
+      "category": "replace_email",
+      "expected": "replace",
+      "runs": [
+        "replace",
+        "replace",
+        "replace",
+        "replace",
+        "replace"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "replace",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-009",
+      "category": "replace_occupation",
+      "expected": "replace",
+      "runs": [
+        "replace",
+        "replace",
+        "replace",
+        "replace",
+        "replace"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "replace",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-010",
+      "category": "replace_height_correction",
+      "expected": "replace",
+      "runs": [
+        "replace",
+        "replace",
+        "replace",
+        "replace",
+        "replace"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "replace",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-011",
+      "category": "replace_blood_type_correction",
+      "expected": "replace",
+      "runs": [
+        "replace",
+        "replace",
+        "replace",
+        "replace",
+        "replace"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "replace",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-012",
+      "category": "replace_favorite_color",
+      "expected": "replace",
+      "runs": [
+        "replace",
+        "replace",
+        "replace",
+        "replace",
+        "replace"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "replace",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-013",
+      "category": "merge_allergy_disjoint",
+      "expected": "merge",
+      "runs": [
+        "merge",
+        "merge",
+        "merge",
+        "merge",
+        "merge"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "merge",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-014",
+      "category": "merge_allergy_three",
+      "expected": "merge",
+      "runs": [
+        "merge",
+        "merge",
+        "merge",
+        "merge",
+        "merge"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "merge",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-015",
+      "category": "merge_likes_overlap",
+      "expected": "merge",
+      "runs": [
+        "ignore",
+        "ignore",
+        "merge",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 2,
+      "mode_action": "ignore",
+      "mode_rate": 0.8,
+      "perfectly_consistent": false,
+      "matches_expected": false
+    },
+    {
+      "id": "arb-016",
+      "category": "merge_pets",
+      "expected": "merge",
+      "runs": [
+        "merge",
+        "merge",
+        "merge",
+        "merge",
+        "merge"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "merge",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-017",
+      "category": "merge_languages",
+      "expected": "merge",
+      "runs": [
+        "merge",
+        "merge",
+        "merge",
+        "merge",
+        "merge"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "merge",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-018",
+      "category": "merge_hobbies",
+      "expected": "merge",
+      "runs": [
+        "merge",
+        "merge",
+        "merge",
+        "merge",
+        "merge"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "merge",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-019",
+      "category": "merge_visited_cities",
+      "expected": "merge",
+      "runs": [
+        "merge",
+        "merge",
+        "merge",
+        "merge",
+        "merge"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "merge",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-020",
+      "category": "merge_dislikes",
+      "expected": "merge",
+      "runs": [
+        "merge",
+        "merge",
+        "merge",
+        "merge",
+        "merge"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "merge",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-021",
+      "category": "merge_children",
+      "expected": "merge",
+      "runs": [
+        "merge",
+        "merge",
+        "merge",
+        "merge",
+        "merge"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "merge",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-022",
+      "category": "merge_skills",
+      "expected": "merge",
+      "runs": [
+        "merge",
+        "merge",
+        "merge",
+        "merge",
+        "merge"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "merge",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-023",
+      "category": "merge_overlap_three",
+      "expected": "merge",
+      "runs": [
+        "ignore",
+        "merge",
+        "merge",
+        "merge",
+        "ignore"
+      ],
+      "distinct_actions": 2,
+      "mode_action": "merge",
+      "mode_rate": 0.6,
+      "perfectly_consistent": false,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-024",
+      "category": "merge_favorite_food_multi",
+      "expected": "merge",
+      "runs": [
+        "merge",
+        "merge",
+        "merge",
+        "merge",
+        "merge"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "merge",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-025",
+      "category": "versioned_worked_in_past",
+      "expected": "versioned",
+      "runs": [
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "versioned",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-026",
+      "category": "versioned_lived_in",
+      "expected": "versioned",
+      "runs": [
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "versioned",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-027",
+      "category": "versioned_studied_at",
+      "expected": "versioned",
+      "runs": [
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "versioned",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-028",
+      "category": "versioned_planned_move",
+      "expected": "versioned",
+      "runs": [
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "versioned",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-029",
+      "category": "versioned_will_visit",
+      "expected": "versioned",
+      "runs": [
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "versioned",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-030",
+      "category": "versioned_history_replace_keyword",
+      "expected": "versioned",
+      "runs": [
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "versioned",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-031",
+      "category": "versioned_planned_event",
+      "expected": "versioned",
+      "runs": [
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "versioned",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-032",
+      "category": "versioned_owned_car_past",
+      "expected": "versioned",
+      "runs": [
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "versioned",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-033",
+      "category": "versioned_relationship_history",
+      "expected": "versioned",
+      "runs": [
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "versioned",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-034",
+      "category": "versioned_lived_in_period",
+      "expected": "versioned",
+      "runs": [
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "versioned",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-035",
+      "category": "versioned_education_phases",
+      "expected": "versioned",
+      "runs": [
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "versioned",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-036",
+      "category": "versioned_will_work_at",
+      "expected": "versioned",
+      "runs": [
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned",
+        "versioned"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "versioned",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-037",
+      "category": "ignore_low_confidence",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-038",
+      "category": "ignore_age_decrease",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-039",
+      "category": "ignore_low_conf_blood_type",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-040",
+      "category": "ignore_marital_unclear",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-041",
+      "category": "ignore_email_typo",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-042",
+      "category": "ignore_height_implausible",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-043",
+      "category": "ignore_weight_extreme",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-044",
+      "category": "ignore_phone_low_conf",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-045",
+      "category": "ignore_hometown_change",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-046",
+      "category": "ignore_gender_low_conf",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-047",
+      "category": "ignore_education_downgrade",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-048",
+      "category": "ignore_inconsistent_subject",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-049",
+      "category": "ignore_partial_confidence",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    },
+    {
+      "id": "arb-050",
+      "category": "ignore_blank_object",
+      "expected": "ignore",
+      "runs": [
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore",
+        "ignore"
+      ],
+      "distinct_actions": 1,
+      "mode_action": "ignore",
+      "mode_rate": 1.0,
+      "perfectly_consistent": true,
+      "matches_expected": true
+    }
+  ],
+  "timestamp": "2026-06-14T14:37:41.637900"
+}
