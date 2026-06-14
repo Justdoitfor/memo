@@ -5,16 +5,22 @@
   - 4 种 action: REPLACE / MERGE / VERSIONED / IGNORE
   - LLM 用 with_structured_output 强约束输出
   - 写完整审计日志, 可回滚可解释
+
+Prompt 版本化 (P1.2):
+  - prompt 字符串已抽到 prompts/arbitrator/v1.yaml
+  - 通过 ARBITRATOR_PROMPT_VERSION 环境变量切版本 (默认 v1)
+  - 审计日志 prompt_version 字段记录用了哪个版本
 """
 
 from __future__ import annotations
 
 import json
+import os
 
-from langchain_core.prompts import ChatPromptTemplate
 from loguru import logger
 
 from app.core.llm_factory import llm_factory
+from app.core.prompt_loader import load_prompt
 from app.memories.semantic import get_field_semantics, semantic_memory
 from app.models import (
     ArbitrationDecision,
@@ -24,59 +30,10 @@ from app.models import (
 from app.storage import get_metadata
 from app.utils.metrics import metrics
 
-_ARBITRATE_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            (
-                "你是一个事实冲突仲裁器. 用户的旧事实与新事实出现矛盾时, 决定如何处理.\n"
-                "\n"
-                "你必须从以下 4 种 action 中选一个:\n"
-                "\n"
-                "1. REPLACE — 新事实完全取代旧事实, 旧事实归档.\n"
-                "   场景: 用户搬家/换工作/年龄增长. 单值字段 (lives_in, works_at, age, occupation).\n"
-                "\n"
-                "2. MERGE — 新事实与旧事实并存 (多值合并).\n"
-                "   场景: 用户提到新的过敏原/爱好/宠物. 多值字段 (allergic_to, likes, has_pet, hobby).\n"
-                "   重要: action=MERGE 时, 必须返回 merged_value 字段, 形如 '乳糖,花生'.\n"
-                "\n"
-                "3. VERSIONED — 同时保留, 标记时间有效区间.\n"
-                "   场景: 时间相关的事实链 (e.g. 用户上半年住北京, 下半年住上海, 历史很重要).\n"
-                "\n"
-                "4. IGNORE — 新事实可疑/不一致, 不写入 Semantic, 仅记 Episodic.\n"
-                "   场景: 新事实置信度低、表述含糊、明显与历史矛盾.\n"
-                "\n"
-                "决策优先级:\n"
-                "  字段语义是 'list' → 优先 MERGE\n"
-                "  字段语义是 'unique' 且新事实置信度高 → 优先 REPLACE\n"
-                "  时间敏感事实 → VERSIONED\n"
-                "  其他不确定 → IGNORE\n"
-                "\n"
-                "必须给出 reasoning (一句话, 说明为什么) 和 confidence (0-1).\n"
-                "\n"
-                "返回 JSON, 字段: action (replace/merge/versioned/ignore 小写), "
-                "reasoning (一句话), confidence (0-1), merged_value (action=merge 时填, 否则 null).\n"
-                '示例: {{"action": "merge", "reasoning": "list 字段, 应保留所有过敏原", "confidence": 0.95, "merged_value": "花生,芝麻"}}'
-            ),
-        ),
-        (
-            "human",
-            (
-                "用户: {user_id}\n"
-                "字段语义: {field_semantics}\n"
-                "\n"
-                "已有事实:\n"
-                "{existing_facts}\n"
-                "\n"
-                "新事实:\n"
-                "  ({subject}, {predicate}, {new_object})\n"
-                "  置信度: {confidence}\n"
-                "\n"
-                "请决策."
-            ),
-        ),
-    ]
-)
+# 通过环境变量切 prompt 版本; 不设置时用 v1 (向后兼容)
+_PROMPT_VERSION = os.getenv("ARBITRATOR_PROMPT_VERSION", "v1")
+_ARBITRATE_PROMPT = load_prompt("arbitrator", version=_PROMPT_VERSION)
+logger.info(f"Arbitrator 使用 prompt 版本: {_PROMPT_VERSION}")
 
 
 class ConflictArbitrator:
