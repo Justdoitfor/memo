@@ -53,6 +53,7 @@ dev = [
 eval = [
     # 评测需要,运行 demo 不需要
     "datasets>=2.16.0",  # HuggingFace datasets 加载 LongMemEval
+    "matplotlib>=3.8.0",  # grid search Pareto 散点图
 ]
 
 [build-system]
@@ -89,6 +90,17 @@ addopts = ["-ra", "-q", "--strict-markers"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 asyncio_mode = "auto"
+markers = [
+    "live_llm: 跑真实 LLM API (需要 MEMOCORTEX_LLM_API_KEY), CI 默认 skip",
+    "integration: 集成测试 — 需要临时 data_dir + 真实 ChromaDB/SQLite",
+    "slow: 较慢的测试 (> 1s), 默认跑, 可用 -m 'not slow' 跳过",
+]
+filterwarnings = [
+    # jieba pkg_resources 弃用警告 — 上游问题, 不影响功能
+    "ignore::UserWarning:jieba._compat",
+    # asyncio fixture loop scope 默认告警
+    "ignore::pytest.PytestDeprecationWarning",
+]
 
 [tool.coverage.run]
 source = ["app"]
