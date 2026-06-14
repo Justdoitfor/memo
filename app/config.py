@@ -107,6 +107,11 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: str = "INFO"
 
+    # ── Observability (P2.1) ───────────────────────────────────────────
+    # log_format: text (默认, 人读 + 颜色) 或 json (生产 ELK / Loki / Grafana)
+    # 切 json 时所有日志带 trace_id 字段, 适合 stdout → docker logs → 集中式日志系统
+    log_format: str = "text"
+
     # ── 中文分词 (BM25 路径) ──────────────────────────────────────────
     # 关闭后 FTS5 仍可工作但中文召回退化为按字切分 (unicode61 风格).
     # 切换 enable_jieba 后需重建 FTS5 索引 (重启服务时若 fts.db 已存在,

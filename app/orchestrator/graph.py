@@ -39,6 +39,7 @@ from app.recall import recall_router
 from app.storage import get_metadata, get_vector_store
 from app.utils.metrics import metrics
 from app.utils.tokenizer import cut_for_fts
+from app.utils.trace_context import traced
 
 
 # Trivial episode 启发式: 包含这些关键词的 episode 才同步触发 LLM 抽取.
@@ -132,6 +133,7 @@ class MemoryOrchestrator:
     # ────────────────────────────────────────────────────────────────────
     # write — 路由 + 写入 + (可选) semantic 抽取
     # ────────────────────────────────────────────────────────────────────
+    @traced
     async def write(self, req: WriteRequest) -> WriteResponse:
         """统一写入入口.
 
@@ -233,6 +235,7 @@ class MemoryOrchestrator:
     # ────────────────────────────────────────────────────────────────────
     # search — Hybrid Recall + Working 兜底 + Profile 注入
     # ────────────────────────────────────────────────────────────────────
+    @traced
     async def search(
         self,
         user_id: str,
@@ -441,6 +444,7 @@ class MemoryOrchestrator:
     # ────────────────────────────────────────────────────────────────────
     # forget — GDPR Right to be Forgotten
     # ────────────────────────────────────────────────────────────────────
+    @traced
     async def forget(
         self,
         user_id: str,
