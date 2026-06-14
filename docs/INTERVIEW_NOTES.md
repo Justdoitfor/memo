@@ -28,6 +28,7 @@
 > - bge-reranker-v2-m3 二阶段提升 nDCG@10 0.973 → 1.000, 但 P95 延迟 32ms → 436ms (13.5x)
 > - LLM Arbitrator 50 条标注集 accuracy 50/50, stability 5 次重跑 94% 完全一致
 > - PostgreSQL Store 通过继承 SQLiteMetadataStore + asyncpg, 真 PG 容器 15 契约测试全过, 业务方法零重写
+> - 规模化 benchmark 抓到 N+1 ChromaDB updates 生产 bug, 修复后 P50 320ms → 30ms (11x 加速); 100/1k/10k 规模 sub-linear scaling, PG vs SQLite 实测快 1.8x
 
 ---
 
@@ -150,8 +151,9 @@ A/B 测: 跑同一标注集 (`arbitrator_eval/dataset_v1.jsonl`) 对比 v1 vs v2
 | 真实 LLM e2e 测试数 | 4 (DeepSeek 真调用) | `tests/integration/test_arbitrator_live.py` |
 | 评测集规模 (recall) | 80 条中文 8 scenario | `eval/datasets/memocortex_zh_v1.jsonl` |
 | 评测集规模 (arbitrator) | 50 条 4 action | `arbitrator_eval/dataset_v1.jsonl` |
-| 一阶段召回 nDCG@10 | **0.9730** | `eval/reports/baseline_default_weights.md` |
-| 一阶段 P50 / P95 延迟 | **23.6ms / 32.2ms** | 同上 |
+| 一阶段召回 nDCG@10 (P0 评测) | **0.9730** | `eval/reports/baseline_default_weights.md` |
+| 一阶段 P50 / P95 延迟 (P0 评测, cold path) | **23.6ms / 32.2ms** | 同上 |
+| 一阶段 P50 / P95 延迟 (P1.4 bench, hot path 100/1k/10k 规模) | **80 / 114 / 153 ms** | `bench/reports/bench_report.md` |
 | Grid search 跑过组合数 | 48 组 (裁剪 grid) | `eval/reports/grid_search_results.md` |
 | Baseline 在 48 组中的排名 | **40 / 48** | 同上 (说明当前权重次优) |
 | 二阶段 reranker nDCG@10 | **1.0000** (8 个 scenario 全拉满) | `eval/reports/reranker_enabled.md` |
@@ -159,6 +161,8 @@ A/B 测: 跑同一标注集 (`arbitrator_eval/dataset_v1.jsonl`) 对比 v1 vs v2
 | Arbitrator accuracy | **50 / 50 = 1.0000** 完美对角 | `arbitrator_eval/reports/accuracy.md` |
 | Arbitrator stability (5 次重跑) | **94.00%** 完全一致 | `arbitrator_eval/reports/stability.md` |
 | PG 契约测试 | **15 / 15** 真容器全过 | `tests/integration/test_pg_metadata_contract.py` |
+| **N+1 ChromaDB updates 修复** | P50 **320ms → 30ms (11x)** | `docs/BENCHMARK.md` |
+| **PG vs SQLite 单条 upsert** | PG 比 SQLite **快 1.8x** (6.8ms vs 12.5ms) | 同上 |
 
 ---
 
@@ -238,6 +242,17 @@ A/B 测: 跑同一标注集 (`arbitrator_eval/dataset_v1.jsonl`) 对比 v1 vs v2
 - **解法**: ChatPromptTemplate 把 `{x}` 当变量, 要字面量必须 `{{x}}`
 - **位置**: `prompts/arbitrator/v1.yaml` 里所有 JSON 示例都用 `{{`
 
+### P1.4 bench 抓到的真生产 bug — N+1 chromaDB updates
+
+- **症状**: bench 跑 100 条规模 P50 = 477ms (比 P0 baseline 23.6ms 慢 20 倍)
+- **诊断方法**: cProfile 5 次 recall 后看 cumulative time, 定位到 `_batch_update_recall_meta` 占 1.967s/2.152s
+- **根因**: 每次 recall 后 fire-and-forget 起 task 循环调 `update_metadata` × top-K (8 次), 每次都 `get + update` (两次 ChromaDB IO ~45ms), 共 360ms. 因为 ChromaDB SQLite 后端有写锁, 上次 task 没跑完时下次 recall 想读会被阻塞
+- **为什么 P0 baseline 没暴露**: 评测每条 setup → recall → forget, recall 后立即删 user, update task 失败也没人在意
+- **解法**: 加 `update_metadata_batch(updates: list[(id, patch)])`, 一次 get + 一次 update 替代 N 次 get + N 次 update
+- **效果**: 100 条规模 recall 从 ~320ms → ~30ms (**11x 加速**)
+- **位置**: `app/storage/chroma_store.py:update_metadata_batch`, `app/recall/router.py:_batch_update_recall_meta`
+- **面试金句**: "我写 bench 的过程本身抓到了一个生产 bug — recall 路径的 N+1 ChromaDB updates. 这就是为什么我坚持 P1.4 要做规模化测试, 不能只看小规模 baseline."
+
 ---
 
 ## 六、阶段更新历史
@@ -262,9 +277,13 @@ A/B 测: 跑同一标注集 (`arbitrator_eval/dataset_v1.jsonl`) 对比 v1 vs v2
 - PostgresMetadataStore 继承 + 真 PG 容器跑 15 契约测试
 - 业务方法零重写, get_metadata() 自动切实现
 
-### 2026-06-14 P1.4 规模化 benchmark (待补充)
+### 2026-06-14 P1.4 规模化 benchmark (commit 7bd7beb)
 
-(P1.4 完成后追加: bench 100/1k/10k 规模延迟分布, latency_curves.png)
+- bench/ 工具 (~510 行): recall × scale + SQLite vs PG + reranker on/off
+- 抓到 N+1 ChromaDB updates 真生产 bug, 修复后 P50 320ms → 30ms (11x)
+- 100/1k/10k 规模 P50 80/114/153 ms (sub-linear scaling)
+- PG vs SQLite 单条 upsert: PG 快 1.8x (实测)
+- bench/reports/latency_curves.png 三联图 (规模 / SQLite-PG / reranker)
 
 ---
 
@@ -274,10 +293,10 @@ A/B 测: 跑同一标注集 (`arbitrator_eval/dataset_v1.jsonl`) 对比 v1 vs v2
 
 **三个数字**:
 - **213 测试** (含真 LLM e2e + 真 PG 容器), 56.40% 覆盖率
-- **nDCG@10 0.973 → 1.000** (二阶段 reranker), P95 32ms → 436ms (Pareto 取舍)
+- **N+1 bug 修复 P50 320ms → 30ms (11x)** (P1.4 bench 抓到)
 - **Baseline 在 grid search 48 组中排名 40** (当前 README 默认权重明显次优)
 
 **三个真坑**:
 - pytest-asyncio + module-scoped fixture "Event loop is closed"
-- app.orchestrator eager init 单例 vs 临时 data_dir
+- N+1 ChromaDB updates 真生产 bug (bench 工具的真实价值)
 - Snapshot Cache 从 TTL 重构成版本号 (写入立即一致 vs 漂移窗口)
