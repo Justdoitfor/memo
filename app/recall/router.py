@@ -215,19 +215,36 @@ class HybridRecallRouter:
     async def _batch_update_recall_meta(
         self, results: list[RecallResult], user_id: str, now: datetime
     ) -> None:
-        """后台批量更新召回元数据 — fire-and-forget, 不阻塞返回."""
-        for r in results:
-            try:
-                await self._vector.update_metadata(
+        """后台批量更新召回元数据 — fire-and-forget, 不阻塞返回.
+
+        优化 (P1.4): 用 update_metadata_batch 一次 get + 一次 update,
+        N 倍快于循环 update_metadata. 在 100+ 条数据规模下从 360ms (top-8 串行)
+        降到 ~50ms — 详见 docs/BENCHMARK.md.
+        """
+        if not results:
+            return
+        try:
+            updates = [
+                (
                     r.record.id,
-                    user_id,
                     {
                         "recall_count": r.record.recall_count + 1,
                         "last_recalled_at_iso": now.isoformat(),
                     },
                 )
-            except Exception:
-                pass
+                for r in results
+            ]
+            # 优先用 batch API; 不支持时降级循环调 update_metadata
+            if hasattr(self._vector, "update_metadata_batch"):
+                await self._vector.update_metadata_batch(updates, user_id=user_id)
+            else:
+                for memory_id, patch in updates:
+                    try:
+                        await self._vector.update_metadata(memory_id, user_id, patch)
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.debug(f"_batch_update_recall_meta 失败 (fire-and-forget, 不影响主流程): {e}")
 
     async def _fetch_records_by_ids(
         self, user_id: str, memory_ids: list[str]

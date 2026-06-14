@@ -69,3 +69,6 @@ Thumbs.db
 # Eval runtime artifacts
 eval/reports/memocortex_zh_v1_*.md
 eval/reports/run_*.md
+
+# Skill artifacts
+.github/skills/
